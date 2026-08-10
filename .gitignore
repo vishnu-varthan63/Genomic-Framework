@@ -1,0 +1,77 @@
+# ==============================================================================
+# Git Ignore Rules — Avian Influenza Genomic Intelligence System
+# ==============================================================================
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Large Genomic Datasets & Data Files
+dataset/
+dataset_augmented/
+dataset_healthy/
+balanced/
+raw/
+processed/
+cache/
+*.fasta
+*.fna
+*.fa
+*.faa
+*.fastq
+*.gff
+*.csv
+*.tsv
+
+# PyTorch Model Checkpoints, Weights & Binary Artifacts
+checkpoints/
+checkpoints_augmented/
+output/
+outputs/
+output_advanced/
+eval_results/
+eval_results_fixed/
+audit_report/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.safetensors
+*.h5
+*.keras
+*.pkl
+*.pickle
+*.joblib
+
+# Execution Logs & Local Summaries
+*.log
+healthy_download.log
+ncbi_download.log
+training.log
+augmentation_log.log
+
+# IDE & Operating System Metadata
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Web Application Build Artifacts
+website/.next/
+website/out/
+website/node_modules/

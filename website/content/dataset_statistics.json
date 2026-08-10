@@ -1,0 +1,142 @@
+{
+  "dataset_name": "AvianFlu Genomic Classification Dataset",
+  "version": "1.0.0-Augmented",
+  "license": "MIT",
+  "description": "Bio-curated FASTA dataset of avian influenza viral genome segments categorized into 4 pathogenicity classes.",
+  "summary": {
+    "total_workspace_fasta_files": 689,
+    "raw_dataset_files": 149,
+    "raw_dataset_sequences": 1048666,
+    "raw_dataset_bases": 4782973902,
+    "raw_avg_length": 4561.0,
+    "raw_median_length": 1059.0,
+    "augmented_dataset_files": 540,
+    "augmented_dataset_sequences": 67482,
+    "augmented_dataset_bases": 87936876,
+    "augmentation_factor_files": 3.62,
+    "augmentation_factor_seqs": 0.06,
+    "balanced_dataset_files": 72,
+    "balanced_dataset_sequences": 35211,
+    "balanced_dataset_bases": 45909430,
+    "balanced_avg_length": 1303.8,
+    "balanced_median_length": 1500,
+    "balanced_min_length": 51,
+    "balanced_max_length": 1500
+  },
+  "split_statistics": {
+    "train": {
+      "files": 48,
+      "sequences": 23520,
+      "percentage_files": 66.7,
+      "percentage_seqs": 66.8,
+      "class_breakdown": {
+        "Benign": {
+          "files": 1,
+          "sequences": 500
+        },
+        "Likely_Benign": {
+          "files": 25,
+          "sequences": 12185
+        },
+        "Likely_Pathogenic": {
+          "files": 15,
+          "sequences": 7355
+        },
+        "Pathogenic": {
+          "files": 7,
+          "sequences": 3480
+        }
+      }
+    },
+    "val": {
+      "files": 10,
+      "sequences": 5000,
+      "percentage_files": 13.9,
+      "percentage_seqs": 14.2,
+      "class_breakdown": {
+        "Benign": {
+          "files": 1,
+          "sequences": 500
+        },
+        "Likely_Benign": {
+          "files": 5,
+          "sequences": 2500
+        },
+        "Likely_Pathogenic": {
+          "files": 3,
+          "sequences": 1500
+        },
+        "Pathogenic": {
+          "files": 1,
+          "sequences": 500
+        }
+      }
+    },
+    "test": {
+      "files": 14,
+      "sequences": 6691,
+      "percentage_files": 19.4,
+      "percentage_seqs": 19.0,
+      "class_breakdown": {
+        "Benign": {
+          "files": 1,
+          "sequences": 191
+        },
+        "Likely_Benign": {
+          "files": 7,
+          "sequences": 3500
+        },
+        "Likely_Pathogenic": {
+          "files": 4,
+          "sequences": 2000
+        },
+        "Pathogenic": {
+          "files": 2,
+          "sequences": 1000
+        }
+      }
+    }
+  },
+  "class_statistics": {
+    "Benign": {
+      "class_index": 0,
+      "num_files": 3,
+      "num_sequences": 1191,
+      "total_bases": 1385010,
+      "avg_sequence_length": 1162.9,
+      "min_sequence_length": 189,
+      "max_sequence_length": 1500,
+      "percentage_of_total_sequences": 3.38
+    },
+    "Likely_Benign": {
+      "class_index": 1,
+      "num_files": 37,
+      "num_sequences": 18185,
+      "total_bases": 24653531,
+      "avg_sequence_length": 1355.7,
+      "min_sequence_length": 145,
+      "max_sequence_length": 1500,
+      "percentage_of_total_sequences": 51.65
+    },
+    "Likely_Pathogenic": {
+      "class_index": 2,
+      "num_files": 22,
+      "num_sequences": 10855,
+      "total_bases": 13546658,
+      "avg_sequence_length": 1248.0,
+      "min_sequence_length": 175,
+      "max_sequence_length": 1500,
+      "percentage_of_total_sequences": 30.83
+    },
+    "Pathogenic": {
+      "class_index": 3,
+      "num_files": 10,
+      "num_sequences": 4980,
+      "total_bases": 6324231,
+      "avg_sequence_length": 1269.9,
+      "min_sequence_length": 51,
+      "max_sequence_length": 1500,
+      "percentage_of_total_sequences": 14.14
+    }
+  }
+}

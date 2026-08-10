@@ -1,0 +1,113 @@
+# ==============================================================================
+# Advanced Training & Optimization Configuration
+# Project: Genomic Sequence Classification Framework
+# UPDATED: Audit fixes applied (2026-08-06)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# System & Reproducibility Settings
+# ------------------------------------------------------------------------------
+system:
+  seed: 42
+  deterministic: true
+  benchmark: false
+  device: "auto"              # "auto", "cuda", "mps", "cpu"
+  multi_gpu: true            # Use DataParallel if multiple GPUs detected
+
+# ------------------------------------------------------------------------------
+# Paths Configuration
+# ------------------------------------------------------------------------------
+paths:
+  dataset_root: "dataset_augmented"
+  output_dir: "output_advanced"
+  checkpoint_dir: "checkpoints"
+  log_dir: "logs"
+  metric_dir: "metrics"
+  plot_dir: "plots"
+  prediction_dir: "predictions"
+  tensorboard_dir: "tensorboard"
+  report_dir: "reports"
+
+# ------------------------------------------------------------------------------
+# Model & Architecture Hyperparameters
+# ------------------------------------------------------------------------------
+model:
+  seq_len: 128
+  vocab_size: 4096          # 4^6 = 4096, matches k_mer_size=6
+  k_mer_size: 6             # FIX: corrected from k=3 to k=6 (matches vocab_size=4096)
+  hyena_dim: 256
+  hidden_dim: 512
+  num_classes: 4
+  max_mutations: 32
+  mutation_dim: 64
+  dropout: 0.2
+
+# ------------------------------------------------------------------------------
+# Dataset & DataLoader Hyperparameters
+# ------------------------------------------------------------------------------
+data:
+  batch_size: 16
+  num_workers: 0
+  pin_memory: true
+  prefetch_factor: 2
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  class_balance: true
+  class_weighting: true
+  stratified: true          # FIX: Enable per-class stratified split (was false/absent)
+  max_sequences_per_file: null       # FIX: null/None for unlimited sequence loading (loads all 35,211 sequences)
+
+# ------------------------------------------------------------------------------
+# Optimization Settings
+# ------------------------------------------------------------------------------
+optimization:
+  optimizer: "adamw"          # "adamw", "adam", "sgd"
+  learning_rate: 0.0001
+  weight_decay: 0.01
+  betas: [0.9, 0.999]
+  eps: 1.0e-08
+  gradient_clipping: 1.0
+  gradient_accumulation_steps: 1
+  use_amp: true               # Automatic Mixed Precision for CUDA
+  nan_loss_detection: true    # FIX: NaN loss skip-step enabled
+  gradient_explosion_threshold: 500.0  # FIX: Set threshold to 500.0 for 10M+ param global L2 norm
+
+# ------------------------------------------------------------------------------
+# Learning Rate Scheduler Settings
+# ------------------------------------------------------------------------------
+scheduler:
+  name: "cosine"              # "cosine", "plateau", "onecycle", "linear"
+  warmup_epochs: 5            # FIX: Linear warmup for first N epochs (prevents cold LR spike)
+  min_lr: 1.0e-06
+  plateau_patience: 5
+  plateau_factor: 0.5
+
+# ------------------------------------------------------------------------------
+# Epoch & Early Stopping Controls
+# ------------------------------------------------------------------------------
+training:
+  max_epochs: 50
+  min_epochs: 25
+  early_stopping:
+    enabled: true
+    patience: 15
+    min_delta: 0.0001
+  model_selection_metric: "val_f1"  # "val_f1", "val_accuracy", "val_loss"
+  checkpoint_interval: 5
+  log_every_n_steps: 10
+
+# ------------------------------------------------------------------------------
+# Evaluation & Metric Calculation Settings
+# FIX: Added balanced_accuracy, weighted_f1, micro_f1 flags
+# ------------------------------------------------------------------------------
+evaluation:
+  compute_auc: true
+  compute_mcc: true
+  compute_kappa: true
+  compute_balanced_accuracy: true  # FIX: added
+  compute_weighted_f1: true        # FIX: added
+  compute_micro_f1: true           # FIX: added
+  save_predictions: true
+  formats: ["csv", "json", "excel"]
+  save_classification_report_csv: true  # FIX: added
