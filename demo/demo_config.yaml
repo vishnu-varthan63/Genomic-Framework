@@ -1,0 +1,16 @@
+kmer_size: 3
+embedding_dim: 64
+feature_dim: 128
+mutation_feature_dim: 64
+attention_heads: 4
+classifier_hidden_dim: 64
+num_classes: 4
+class_labels:
+  - "Class_A"
+  - "Class_B"
+  - "Class_C"
+  - "Class_D"
+min_seq_len: 50
+max_seq_len: 5000
+blast_path: null  # Set to full path of blastn if available
+blast_db: null    # Path to BLAST database if using real BLAST
