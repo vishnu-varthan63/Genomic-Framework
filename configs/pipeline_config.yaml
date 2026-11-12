@@ -20,6 +20,10 @@ ingest:
   page_size: 200
   max_records: null            # null = download all matching records
   date_from: "2010-01-01"
+  all_subtypes: true
+  all_substrands: true
+  per_subtype_limit: 500
+  per_substrand_limit: 500
   sources:
     ncbi: true
     ena: false                 # EBI/ENA browser API frequently read-times out; NCBI mirrors full INSDC
