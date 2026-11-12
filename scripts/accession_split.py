@@ -95,9 +95,15 @@ def run_split(cfg: Dict) -> int:
         return 1
 
     with manifest_path.open("r", encoding="utf-8") as fh:
-        rows = list(csv.DictReader(fh))
+        all_rows = list(csv.DictReader(fh))
 
-    logger.info("Loaded %d manifest rows for splitting", len(rows))
+    # Strictly filter for real biological isolates (never assign augmented records to test/val)
+    real_rows = [
+        r for r in all_rows
+        if not r.get("source", "").startswith("augmented_") and "_aug" not in r.get("insdc_accession", "")
+    ]
+
+    logger.info("Loaded %d manifest rows (%d real biological isolates for splitting)", len(all_rows), len(real_rows))
 
     split_cfg = cfg.get("split", {})
     train_ratio = split_cfg.get("train_ratio", 0.70)
@@ -109,7 +115,7 @@ def run_split(cfg: Dict) -> int:
     groups: Dict[str, List[str]] = defaultdict(list)
     strata: Dict[str, str] = {}  # accession → subtype_pathotype stratum
 
-    for row in rows:
+    for row in real_rows:
         acc     = row["insdc_accession"]
         subtype = row.get("subtype", "UNKNOWN")
         pathotype = row.get("pathotype", "INDETERMINATE")
@@ -120,7 +126,7 @@ def run_split(cfg: Dict) -> int:
 
         strata[acc] = f"{subtype}_{pathotype}"
 
-    logger.info("Found %d isolate groups across %d sequences", len(groups), len(rows))
+    logger.info("Found %d isolate groups across %d real sequences", len(groups), len(real_rows))
 
     train_accs, val_accs, test_accs = _stratified_group_split(
         dict(groups), strata, train_ratio=train_ratio, val_ratio=val_ratio, seed=seed
@@ -159,22 +165,23 @@ def run_split(cfg: Dict) -> int:
     for acc in val_accs:   split_map[acc] = "val"
     for acc in test_accs:  split_map[acc] = "test"
 
-    for row in rows:
+    for row in real_rows:
         row["split"] = split_map.get(row["insdc_accession"], "unassigned")
 
     split_manifest = splits_dir / "split_manifest.csv"
-    fieldnames = list(rows[0].keys()) if rows else []
+    fieldnames = list(real_rows[0].keys()) if real_rows else []
     with split_manifest.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows(rows)
-    logger.info("Split manifest: %s", split_manifest)
+        writer.writerows(real_rows)
+    logger.info("Split manifest: %s (%d real records)", split_manifest, len(real_rows))
 
     # Also update canonical manifest in place
     with manifest_path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(real_rows)
+    logger.info("Canonical manifest updated: %s (%d real records)", manifest_path, len(real_rows))
 
     return 0
 

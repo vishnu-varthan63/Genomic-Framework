@@ -105,6 +105,21 @@ class TestIngestModules(unittest.TestCase):
             self.assertTrue(cp2.is_completed("subtype_H5N1"))
             self.assertEqual(cp2.data["stats"]["subtype_H5N1"], 50)
 
+    def test_splits_data_hygiene(self):
+        """Verify that val and test splits are strictly unaugmented."""
+        splits_dir = Path("dataset/splits")
+        val_file = splits_dir / "val_accessions.txt"
+        test_file = splits_dir / "test_accessions.txt"
+        if val_file.exists() and test_file.exists():
+            val_accs = [l.strip() for l in val_file.read_text(encoding="utf-8").splitlines() if l.strip()]
+            test_accs = [l.strip() for l in test_file.read_text(encoding="utf-8").splitlines() if l.strip()]
+
+            aug_in_val = [a for a in val_accs if "_aug" in a]
+            aug_in_test = [a for a in test_accs if "_aug" in a]
+            self.assertEqual(len(aug_in_val), 0, "Validation set polluted with augmented sequences")
+            self.assertEqual(len(aug_in_test), 0, "Test set polluted with augmented sequences")
+
 
 if __name__ == "__main__":
     unittest.main()
+

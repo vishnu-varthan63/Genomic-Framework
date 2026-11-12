@@ -153,12 +153,15 @@ def run_label_qc(cfg: Dict) -> int:
     excluded_dir.mkdir(parents=True, exist_ok=True)
     excluded_report = excluded_dir / "excluded_report.csv"
 
-    # Read manifest
+    # Read manifest (filter for real biological isolates)
     with manifest_path.open("r", encoding="utf-8") as fh:
-        reader = csv.DictReader(fh)
-        rows = list(reader)
+        raw_rows = list(csv.DictReader(fh))
 
-    logger.info("Loaded %d manifest rows", len(rows))
+    rows = [
+        r for r in raw_rows
+        if not r.get("source", "").startswith("augmented_") and "_aug" not in r.get("insdc_accession", "")
+    ]
+    logger.info("Loaded %d manifest rows (%d real biological isolates for QC)", len(raw_rows), len(rows))
 
     # Build isolate → HA pathotype map (for inheriting to non-HA segments)
     # Key: (accession prefix without last char) is too crude; use subtype+segment grouping
