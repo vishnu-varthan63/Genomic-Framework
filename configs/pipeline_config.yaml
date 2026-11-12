@@ -22,10 +22,10 @@ ingest:
   date_from: "2010-01-01"
   sources:
     ncbi: true
-    ena: true
-    bvbrc: true                # metadata evidence only unless accession is INSDC
+    ena: false                 # EBI/ENA browser API frequently read-times out; NCBI mirrors full INSDC
+    bvbrc: false               # metadata evidence only unless accession is INSDC
   ncbi:
-    email: null                # falls back to NCBI_EMAIL env
+    email: "vishnuvarthansenthilkumar@gmail.com"  # falls back to NCBI_EMAIL env
     api_key: null              # falls back to NCBI_API_KEY env
     inter_request_delay_s: 0.34
   ena:

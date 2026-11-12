@@ -361,6 +361,11 @@ def ingest_ncbi(
         query_broad = f"txid11320[Organism:exp] AND {min_len}:{max_len}[SLEN]"
         uids = _ncbi_esearch(query_broad, email, api_key, delay=delay)
 
+    max_records = cfg["ingest"].get("max_records")
+    if max_records and isinstance(max_records, int):
+        uids = uids[:max_records]
+        logger.info("[NCBI] Capped to %d UIDs via max_records setting", len(uids))
+
     logger.info("[NCBI] Will fetch %d sequences in batches of %d", len(uids), _RETMAX)
 
     raw_staging_dir.mkdir(parents=True, exist_ok=True)
@@ -511,6 +516,11 @@ def ingest_ena(
             "split": "",
         })
 
+        max_records = cfg["ingest"].get("max_records")
+        if max_records and isinstance(max_records, int) and len(rows) >= max_records:
+            logger.info("[ENA] Reached cap of %d records", max_records)
+            break
+
         if (i + 1) % 500 == 0:
             logger.info("[ENA] Processed %d ENA records so far (%d accepted)", i + 1, len(rows))
 
@@ -604,11 +614,16 @@ def write_manifest(rows: List[Dict], manifest_path: Path) -> None:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Ingest NCBI + ENA avian influenza sequences")
     p.add_argument("--config", type=Path, default=Path("configs/pipeline_config.yaml"))
-    p.add_argument("--from-raw", action="store_true", help="Ingest from existing local dataset/raw files")
+    p.add_argument("--from-raw", action="store_true", help="Ingest exclusively from existing local dataset/raw files")
+    p.add_argument("--live", action="store_true", help="Download live from NCBI and ENA public APIs")
+    p.add_argument("--limit", type=int, default=None, help="Cap maximum records to download per source")
     args = p.parse_args(argv)
 
     with args.config.open("r", encoding="utf-8") as fh:
         cfg = yaml.safe_load(fh)
+
+    if args.limit:
+        cfg["ingest"]["max_records"] = args.limit
 
     root = Path(cfg["paths"]["dataset_root"])
     canonical_dir = Path(cfg["paths"]["canonical_dir"])
@@ -635,8 +650,9 @@ def main(argv: list[str] | None = None) -> int:
 
     all_rows = list(existing_rows)
 
-    # Ingest from local dataset/raw if requested or present
-    if args.from_raw or (root / "raw").exists():
+    # 1. Local raw ingestion if requested or bootstrapping an empty manifest without --live flag
+    should_ingest_local = args.from_raw or (not args.live and not manifest_path.exists() and (root / "raw").exists())
+    if should_ingest_local:
         raw_local_dir = root / "raw"
         logger.info("--- Local raw files ingest ---")
         local_rows = ingest_from_raw_local(
@@ -652,13 +668,15 @@ def main(argv: list[str] | None = None) -> int:
 
     sources = cfg["ingest"].get("sources", {})
 
-    if sources.get("ncbi", False) and not args.from_raw:
-        logger.info("--- NCBI ingest ---")
+    # 2. Live remote sources (NCBI & ENA)
+    should_ingest_live = args.live or (not args.from_raw and sources.get("ncbi", False))
+    if should_ingest_live and sources.get("ncbi", False):
+        logger.info("--- Live NCBI ingest ---")
         ncbi_rows = ingest_ncbi(cfg, canonical_fasta_dir, raw_ncbi, seen_sha256, seen_accessions)
         all_rows.extend(ncbi_rows)
 
-    if sources.get("ena", False) and not args.from_raw:
-        logger.info("--- ENA ingest ---")
+    if should_ingest_live and sources.get("ena", False):
+        logger.info("--- Live ENA ingest ---")
         ena_rows = ingest_ena(cfg, canonical_fasta_dir, raw_ena, seen_sha256, seen_accessions)
         all_rows.extend(ena_rows)
 
