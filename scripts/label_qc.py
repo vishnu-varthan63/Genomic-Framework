@@ -63,9 +63,9 @@ _CODON_TABLE: Dict[str, str] = {
 }
 
 # HPAI cleavage site motif: polybasic insert of form [RK]-[RK]-X-[RK]↓G
-# or [RK]-[RK]-[RK]-[RK]↓G  found in H5/H7 HPAI strains.
-# We search the translated HA for this pattern in the last 25 aa before Gly
-_HPAI_MOTIF = re.compile(r"[RK]{2,}[A-Z]?[RK]G", re.ASCII)
+# or [RK]-[RK]-[RK]-[RK]↓G found in H5/H7 HPAI strains preceding the HA2 fusion peptide (GLF / GIF).
+_HPAI_MOTIF = re.compile(r"([RK][KR][RKTR][RK]|RERRRKKR|REKRRKR|RG[KR]{3,}|[RK]{2,}[A-Z]?[RK])(?=G[ILF])", re.ASCII)
+_HPAI_FALLBACK = re.compile(r"[RK]{3,}[A-Z]?[RK]", re.ASCII)
 _BASIC_AA = frozenset("RK")
 
 
@@ -106,24 +106,23 @@ def _classify_ha_pathotype(seq: str, subtype: str) -> Tuple[str, str]:
     if len(prot) < 30:
         return "INDETERMINATE", "low"   # too short to assess
 
-    # Scan last 30 aa of HA1 region (approximate: last 30 aa before length/3)
-    ha1_end = min(len(prot), len(prot) // 3 + 60)
-    scan_region = prot[max(0, ha1_end - 30): ha1_end + 10]
-
-    if _HPAI_MOTIF.search(scan_region):
+    # Scan for polybasic motif immediately preceding the HA2 fusion peptide (G[ILF])
+    if _HPAI_MOTIF.search(prot):
         if is_h5_or_h7:
             return "HPAI", "high"
-        else:
-            return "HPAI", "medium"   # unusual but possible
+        return "HPAI", "medium"
 
-    # Count basic residues in cleavage window
-    basic_count = sum(1 for aa in scan_region if aa in _BASIC_AA)
+    # Fallback: scan cleavage loop region (residues 290..380 in standard HA numbering)
+    if len(prot) >= 300:
+        window = prot[290: min(len(prot), 380)]
+        if _HPAI_FALLBACK.search(window):
+            if is_h5_or_h7:
+                return "HPAI", "high"
+            return "HPAI", "medium"
+
     if is_h5_or_h7:
-        if basic_count >= 2:
-            return "LPAI", "medium"
         return "LPAI", "high"
-    else:
-        return "LPAI", "medium"
+    return "LPAI", "high"
 
 
 def _load_fasta(fasta_path: Path) -> Optional[str]:
@@ -138,6 +137,22 @@ def _load_fasta(fasta_path: Path) -> Optional[str]:
 def _is_contaminant(seq: str, min_viral_len: int = 500) -> bool:
     """Basic heuristic: too short → likely fragment/contaminant."""
     return len(seq) < min_viral_len
+
+
+def _get_isolate_key(acc: str, subtype: str) -> str:
+    """Derive isolate key for segment linkage and pathotype inheritance."""
+    if acc.startswith("BVBRC_"):
+        return "_".join(acc.split("_")[:2])
+    # Nextstrain references
+    if acc.startswith("AF1443"):
+        return "nextstrain_gsgd96_h5n1"
+    if acc.startswith("NC_0264") or acc == "KJ411975":
+        return "nextstrain_shanghai13_h7n9"
+    if acc.startswith("CY0878"):
+        return "nextstrain_h9n2"
+    # General INSDC accession: strip version and take 7-char prefix + subtype
+    acc_clean = acc.split(".")[0]
+    return f"{acc_clean[:7]}_{subtype.upper()}"
 
 
 def run_label_qc(cfg: Dict) -> int:
@@ -163,15 +178,11 @@ def run_label_qc(cfg: Dict) -> int:
     ]
     logger.info("Loaded %d manifest rows (%d real biological isolates for QC)", len(raw_rows), len(rows))
 
-    # Build isolate → HA pathotype map (for inheriting to non-HA segments)
-    # Key: (accession prefix without last char) is too crude; use subtype+segment grouping
-    # We'll group by: first 10 chars of accession (isolate proxy) + subtype
     ha_pathotype_map: Dict[str, Tuple[str, str]] = {}
-
-    # First pass: label HA segments
-    accepted: List[Dict] = []
+    valid_records: List[Tuple[Dict, str]] = []  # (row, seq)
     excluded: List[Dict] = []
 
+    # Pass 1: Validate sequences, filter contaminants, and classify all HA segments
     for row in rows:
         acc = row["insdc_accession"]
         segment = row.get("segment", "")
@@ -194,22 +205,33 @@ def run_label_qc(cfg: Dict) -> int:
             excluded.append(row)
             continue
 
+        valid_records.append((row, seq))
+
         if segment == "HA":
             pathotype, confidence = _classify_ha_pathotype(seq, subtype)
             row["pathotype"] = pathotype
             row["label_confidence"] = confidence
-            # Store for inheritance
-            isolate_key = acc[:8] + subtype  # crude isolate proxy
+            isolate_key = _get_isolate_key(acc, subtype)
             ha_pathotype_map[isolate_key] = (pathotype, confidence)
-        else:
-            # Non-HA: inherit from isolate-linked HA if possible
-            isolate_key = acc[:8] + subtype
-            if isolate_key in ha_pathotype_map:
+
+    # Pass 2: Inherit pathotype to non-HA segments from isolate-linked HA
+    inherit_enabled = cfg.get("labeling", {}).get("inherit_non_ha_from_isolate", True)
+    indeterminate_pt = cfg.get("labeling", {}).get("indeterminate_pathotype", "INDETERMINATE")
+
+    accepted: List[Dict] = []
+    for row, seq in valid_records:
+        segment = row.get("segment", "")
+        subtype = row.get("subtype", "")
+        acc = row["insdc_accession"]
+
+        if segment != "HA":
+            isolate_key = _get_isolate_key(acc, subtype)
+            if inherit_enabled and isolate_key in ha_pathotype_map:
                 pt, conf = ha_pathotype_map[isolate_key]
                 row["pathotype"] = pt
-                row["label_confidence"] = "inherited_" + conf
+                row["label_confidence"] = f"inherited_{conf}"
             else:
-                row["pathotype"] = cfg["labeling"].get("indeterminate_pathotype", "INDETERMINATE")
+                row["pathotype"] = indeterminate_pt
                 row["label_confidence"] = "low"
 
         accepted.append(row)

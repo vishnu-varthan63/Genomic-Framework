@@ -49,24 +49,26 @@ logger = logging.getLogger("run_pipeline")
 
 _ROOT = Path(__file__).resolve().parent
 
-STAGES = ["ingest", "qc", "split", "augment", "train", "eval"]
+STAGES = ["ingest", "ingest-external", "qc", "split", "augment", "train", "eval"]
 
 
 def build_stage_command(name: str, args: Optional[argparse.Namespace] = None) -> List[str]:
     """Construct command line arguments for a pipeline stage."""
     base_commands = {
-        "ingest":  [sys.executable, str(_ROOT / "scripts" / "ingest_ncbi_ena.py"),
-                    "--config", str(_ROOT / "configs" / "pipeline_config.yaml")],
-        "qc":      [sys.executable, str(_ROOT / "scripts" / "label_qc.py"),
-                    "--config", str(_ROOT / "configs" / "pipeline_config.yaml")],
-        "split":   [sys.executable, str(_ROOT / "scripts" / "accession_split.py"),
-                    "--config", str(_ROOT / "configs" / "pipeline_config.yaml")],
-        "augment": [sys.executable, str(_ROOT / "scripts" / "augment_training_set.py"),
-                    "--config", str(_ROOT / "configs" / "pipeline_config.yaml")],
-        "train":   [sys.executable, str(_ROOT / "train_advanced.py"),
-                    "--config", str(_ROOT / "configs" / "train_config.yaml")],
-        "eval":    [sys.executable, str(_ROOT / "evaluate_advanced.py"),
-                    "--config", str(_ROOT / "configs" / "train_config.yaml")],
+        "ingest":          [sys.executable, str(_ROOT / "scripts" / "ingest_ncbi_ena.py"),
+                            "--config", str(_ROOT / "configs" / "pipeline_config.yaml")],
+        "ingest-external": [sys.executable, str(_ROOT / "scripts" / "ingest_external_sources.py"),
+                            "--config", str(_ROOT / "configs" / "pipeline_config.yaml")],
+        "qc":              [sys.executable, str(_ROOT / "scripts" / "label_qc.py"),
+                            "--config", str(_ROOT / "configs" / "pipeline_config.yaml")],
+        "split":           [sys.executable, str(_ROOT / "scripts" / "accession_split.py"),
+                            "--config", str(_ROOT / "configs" / "pipeline_config.yaml")],
+        "augment":         [sys.executable, str(_ROOT / "scripts" / "augment_training_set.py"),
+                            "--config", str(_ROOT / "configs" / "pipeline_config.yaml")],
+        "train":           [sys.executable, str(_ROOT / "train_advanced.py"),
+                            "--config", str(_ROOT / "configs" / "train_config.yaml")],
+        "eval":            [sys.executable, str(_ROOT / "evaluate_advanced.py"),
+                            "--config", str(_ROOT / "configs" / "train_config.yaml")],
     }
     cmd = list(base_commands[name])
 
@@ -89,6 +91,16 @@ def build_stage_command(name: str, args: Optional[argparse.Namespace] = None) ->
             cmd.append("--dry-run")
         if getattr(args, "from_raw", False):
             cmd.append("--from-raw")
+
+    elif name == "ingest-external" and args:
+        if getattr(args, "external_source", None):
+            cmd.extend(["--source", args.external_source])
+        if getattr(args, "per_subtype_limit", None):
+            cmd.extend(["--limit-per-subtype", str(args.per_subtype_limit)])
+        if getattr(args, "limit", None):
+            cmd.extend(["--max-total-bvbrc", str(args.limit)])
+        if getattr(args, "dry_run", False):
+            cmd.append("--dry-run")
 
     return cmd
 
@@ -131,6 +143,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--limit", type=int, default=None, help="Cap total sequences to download")
     p.add_argument("--dry-run", action="store_true", help="Run hit count survey without downloading")
     p.add_argument("--from-raw", action="store_true", help="Ingest from local raw directory")
+    p.add_argument("--external-source", choices=["all", "bvbrc", "nextstrain"], default="all", help="External source for ingest-external stage")
 
     args = p.parse_args(argv)
 

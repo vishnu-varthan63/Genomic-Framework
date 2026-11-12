@@ -27,11 +27,17 @@ ingest:
   sources:
     ncbi: true
     ena: false                 # EBI/ENA browser API frequently read-times out; NCBI mirrors full INSDC
-    bvbrc: false               # metadata evidence only unless accession is INSDC
+    bvbrc: true                # Option A: BV-BRC (FluDB) high-throughput REST/RQL
+    nextstrain: true           # Option B: Nextstrain curated reference lineages
   ncbi:
     email: "vishnuvarthansenthilkumar@gmail.com"  # falls back to NCBI_EMAIL env
     api_key: null              # falls back to NCBI_API_KEY env
     inter_request_delay_s: 0.34
+  bvbrc:
+    limit_per_subtype: 50
+    max_total: 500
+  nextstrain:
+    enabled: true
   ena:
     page_size: 500
 
