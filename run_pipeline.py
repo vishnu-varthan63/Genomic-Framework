@@ -43,19 +43,21 @@ logger = logging.getLogger("run_pipeline")
 
 _ROOT = Path(__file__).resolve().parent
 
-STAGES = ["ingest", "qc", "split", "train", "eval"]
+STAGES = ["ingest", "qc", "split", "augment", "train", "eval"]
 
 STAGE_COMMANDS = {
-    "ingest": [sys.executable, str(_ROOT / "scripts" / "ingest_ncbi_ena.py"),
-               "--config", str(_ROOT / "configs" / "pipeline_config.yaml")],
-    "qc":     [sys.executable, str(_ROOT / "scripts" / "label_qc.py"),
-               "--config", str(_ROOT / "configs" / "pipeline_config.yaml")],
-    "split":  [sys.executable, str(_ROOT / "scripts" / "accession_split.py"),
-               "--config", str(_ROOT / "configs" / "pipeline_config.yaml")],
-    "train":  [sys.executable, str(_ROOT / "train_advanced.py"),
-               "--config", str(_ROOT / "configs" / "train_config.yaml")],
-    "eval":   [sys.executable, str(_ROOT / "evaluate_advanced.py"),
-               "--config", str(_ROOT / "configs" / "train_config.yaml")],
+    "ingest":  [sys.executable, str(_ROOT / "scripts" / "ingest_ncbi_ena.py"),
+                "--config", str(_ROOT / "configs" / "pipeline_config.yaml")],
+    "qc":      [sys.executable, str(_ROOT / "scripts" / "label_qc.py"),
+                "--config", str(_ROOT / "configs" / "pipeline_config.yaml")],
+    "split":   [sys.executable, str(_ROOT / "scripts" / "accession_split.py"),
+                "--config", str(_ROOT / "configs" / "pipeline_config.yaml")],
+    "augment": [sys.executable, str(_ROOT / "scripts" / "augment_training_set.py"),
+                "--config", str(_ROOT / "configs" / "pipeline_config.yaml")],
+    "train":   [sys.executable, str(_ROOT / "train_advanced.py"),
+                "--config", str(_ROOT / "configs" / "train_config.yaml")],
+    "eval":    [sys.executable, str(_ROOT / "evaluate_advanced.py"),
+                "--config", str(_ROOT / "configs" / "train_config.yaml")],
 }
 
 
