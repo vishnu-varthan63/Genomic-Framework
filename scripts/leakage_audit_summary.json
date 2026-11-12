@@ -1,0 +1,39 @@
+{
+  "split_counts": {
+    "train": 23520,
+    "val": 5000,
+    "test": 6691
+  },
+  "parent_accession_leakage": {
+    "train_val_overlap": 779,
+    "train_test_overlap": 1028,
+    "val_test_overlap": 427,
+    "sample_leaked_accessions_train_test": [
+      "PZ235031.1",
+      "OR048639.1",
+      "PX879739.1",
+      "MH502241.1",
+      "MG366509.1",
+      "OP806480.1",
+      "MN703061.1",
+      "KP287093.1",
+      "OM373304.1",
+      "PV695011.1",
+      "OK205756.1",
+      "PV496864.1",
+      "PZ031620.1",
+      "PZ610237.1",
+      "KP287118.1"
+    ]
+  },
+  "exact_sequence_leakage": {
+    "train_val_overlap": 207,
+    "train_test_overlap": 237,
+    "val_test_overlap": 0
+  },
+  "benign_composition": {
+    "host_sequences": 1129,
+    "viral_sequences": 62,
+    "percent_host": 94.79
+  }
+}

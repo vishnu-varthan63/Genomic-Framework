@@ -1,0 +1,55 @@
+# End-to-end data ingest → QC → split configuration
+# Secrets: NCBI_EMAIL, NCBI_API_KEY (optional, raises rate limit)
+
+paths:
+  dataset_root: "dataset"
+  staging_dir: "dataset/raw_sources"
+  canonical_dir: "dataset/canonical"
+  excluded_dir: "dataset/excluded"
+  splits_dir: "dataset/splits"
+  host_references: "dataset/host_references"
+  output_dir: "output_advanced"
+  # Optional bulk staging if F: is tight, e.g. D:/genomic_framework_downloads
+  bulk_staging_dir: null
+
+ingest:
+  taxid: 11320                 # Influenza A virus
+  host_taxid: 8782             # Aves
+  min_len: 700
+  max_len: 2500
+  page_size: 200
+  max_records: null            # null = download all matching records
+  date_from: "2010-01-01"
+  sources:
+    ncbi: true
+    ena: true
+    bvbrc: true                # metadata evidence only unless accession is INSDC
+  ncbi:
+    email: null                # falls back to NCBI_EMAIL env
+    api_key: null              # falls back to NCBI_API_KEY env
+    inter_request_delay_s: 0.34
+  ena:
+    page_size: 500
+
+qc:
+  drop_patents: true
+  drop_synthetic: true
+  drop_non_influenza: true
+  require_acgtn: true
+  max_n_fraction: 0.05
+
+labeling:
+  indeterminate_pathotype: "INDETERMINATE"
+  inherit_non_ha_from_isolate: true
+
+split:
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  seed: 42
+  group_by: "isolate_id"       # accession-level leakage prevention
+
+augmentation:
+  enabled: true
+  train_only: true
+  copies_per_sequence: 2

@@ -18,7 +18,7 @@ system:
 # Paths Configuration
 # ------------------------------------------------------------------------------
 paths:
-  dataset_root: "dataset_augmented"
+  dataset_root: "dataset"
   output_dir: "output_advanced"
   checkpoint_dir: "checkpoints"
   log_dir: "logs"
@@ -32,7 +32,7 @@ paths:
 # Model & Architecture Hyperparameters
 # ------------------------------------------------------------------------------
 model:
-  seq_len: 128
+  seq_len: 512              # FIX: 512 bp context to capture HA cleavage & RBD sites
   vocab_size: 4096          # 4^6 = 4096, matches k_mer_size=6
   k_mer_size: 6             # FIX: corrected from k=3 to k=6 (matches vocab_size=4096)
   hyena_dim: 256
@@ -63,6 +63,8 @@ data:
 # ------------------------------------------------------------------------------
 optimization:
   optimizer: "adamw"          # "adamw", "adam", "sgd"
+  loss_type: "focal"          # "focal", "cross_entropy"
+  focal_gamma: 2.0            # Focusing parameter for class imbalance
   learning_rate: 0.0001
   weight_decay: 0.01
   betas: [0.9, 0.999]

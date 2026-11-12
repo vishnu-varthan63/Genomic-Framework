@@ -235,6 +235,42 @@ class MLPClassifier(nn.Module):
         )
 
 
+class MultiTaskClassifier(nn.Module):
+    """
+    Multi-task classification head that simultaneously maps fused sequence
+    representations to:
+      1. Primary pathotype 4-strata logits
+      2. Subtype HxNy logits
+      3. Genomic segment logits (HA, NA, PB2, …)
+      4. Direct pathotype logits (LPAI, HPAI, INDETERMINATE)
+    """
+
+    def __init__(
+        self,
+        hidden_dim: int = 512,
+        num_classes: int = 4,
+        num_subtypes: int = 20,
+        num_segments: int = 8,
+        num_pathotypes: int = 3,
+        dropout: float = 0.3,
+    ) -> None:
+        super().__init__()
+        self.primary_mlp = MLPClassifier(hidden_dim=hidden_dim, num_classes=num_classes, dropout=dropout)
+        self.subtype_head = nn.Linear(hidden_dim, num_subtypes) if num_subtypes > 0 else None
+        self.segment_head = nn.Linear(hidden_dim, num_segments) if num_segments > 0 else None
+        self.pathotype_head = nn.Linear(hidden_dim, num_pathotypes) if num_pathotypes > 0 else None
+
+    def forward(self, x: torch.Tensor) -> dict:
+        out = {"logits": self.primary_mlp(x)}
+        if self.subtype_head is not None:
+            out["subtype_logits"] = self.subtype_head(x)
+        if self.segment_head is not None:
+            out["segment_logits"] = self.segment_head(x)
+        if self.pathotype_head is not None:
+            out["pathotype_logits"] = self.pathotype_head(x)
+        return out
+
+
 # ---------------------------------------------------------------------------
 # Quick smoke-test (module-level)
 # ---------------------------------------------------------------------------

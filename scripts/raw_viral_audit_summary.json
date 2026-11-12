@@ -1,0 +1,178 @@
+{
+  "total_files": 134,
+  "total_sequences": 13389,
+  "unique_sequences": 9882,
+  "exact_duplicates": 3507,
+  "unique_accessions": 13308,
+  "total_bases": 42012236,
+  "mean_length": 3137.82,
+  "median_length": 1565,
+  "min_length": 11,
+  "max_length": 5214047,
+  "p25_length": 1027,
+  "p75_length": 2233,
+  "iupac_composition": {
+    "A": 12933580,
+    "C": 8584767,
+    "G": 9741890,
+    "T": 10743753,
+    "N": 6630,
+    "OTHER": 1616
+  },
+  "subtypes": {
+    "H10N7": {
+      "files": 10,
+      "seqs": 1000,
+      "bases": 1815259,
+      "complete": 995,
+      "partial": 5
+    },
+    "H10N8": {
+      "files": 10,
+      "seqs": 1000,
+      "bases": 1628433,
+      "complete": 971,
+      "partial": 29
+    },
+    "H5N1": {
+      "files": 10,
+      "seqs": 1000,
+      "bases": 1634432,
+      "complete": 986,
+      "partial": 14
+    },
+    "H5N2": {
+      "files": 10,
+      "seqs": 1000,
+      "bases": 1644409,
+      "complete": 997,
+      "partial": 3
+    },
+    "H5N3": {
+      "files": 10,
+      "seqs": 1000,
+      "bases": 1620877,
+      "complete": 957,
+      "partial": 43
+    },
+    "H5N6": {
+      "files": 10,
+      "seqs": 1000,
+      "bases": 1636096,
+      "complete": 992,
+      "partial": 8
+    },
+    "H5N8": {
+      "files": 10,
+      "seqs": 1000,
+      "bases": 1562222,
+      "complete": 902,
+      "partial": 98
+    },
+    "H5N9": {
+      "files": 6,
+      "seqs": 591,
+      "bases": 964076,
+      "complete": 565,
+      "partial": 26
+    },
+    "H7N1": {
+      "files": 10,
+      "seqs": 1000,
+      "bases": 1611358,
+      "complete": 917,
+      "partial": 83
+    },
+    "H7N2": {
+      "files": 10,
+      "seqs": 1000,
+      "bases": 1749377,
+      "complete": 962,
+      "partial": 38
+    },
+    "H7N3": {
+      "files": 10,
+      "seqs": 1000,
+      "bases": 1652270,
+      "complete": 988,
+      "partial": 12
+    },
+    "H7N7": {
+      "files": 8,
+      "seqs": 800,
+      "bases": 14105281,
+      "complete": 780,
+      "partial": 20
+    },
+    "H7N9": {
+      "files": 10,
+      "seqs": 998,
+      "bases": 8787234,
+      "complete": 883,
+      "partial": 115
+    },
+    "H9N2": {
+      "files": 10,
+      "seqs": 1000,
+      "bases": 1600912,
+      "complete": 979,
+      "partial": 21
+    }
+  },
+  "segments": {
+    "1": {
+      "seqs": 1613,
+      "bases": 3680509,
+      "complete": 1597,
+      "partial": 16
+    },
+    "2": {
+      "seqs": 1614,
+      "bases": 3681094,
+      "complete": 1598,
+      "partial": 16
+    },
+    "4": {
+      "seqs": 1965,
+      "bases": 3209892,
+      "complete": 1809,
+      "partial": 156
+    },
+    "7": {
+      "seqs": 1611,
+      "bases": 1594924,
+      "complete": 1574,
+      "partial": 37
+    },
+    "3": {
+      "seqs": 1580,
+      "bases": 3374514,
+      "complete": 1513,
+      "partial": 67
+    },
+    "6": {
+      "seqs": 1664,
+      "bases": 2319604,
+      "complete": 1609,
+      "partial": 55
+    },
+    "8": {
+      "seqs": 1553,
+      "bases": 1319329,
+      "complete": 1514,
+      "partial": 39
+    },
+    "5": {
+      "seqs": 1551,
+      "bases": 2344583,
+      "complete": 1528,
+      "partial": 23
+    },
+    "0": {
+      "seqs": 238,
+      "bases": 20487787,
+      "complete": 132,
+      "partial": 106
+    }
+  }
+}

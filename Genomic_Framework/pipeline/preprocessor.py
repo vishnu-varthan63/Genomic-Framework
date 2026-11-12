@@ -57,11 +57,23 @@ SUBTYPE_TO_CLASS: Dict[str, int] = {
 
 #: Human-readable label names (index == class integer).
 CLASS_LABELS: List[str] = [
-    "Benign",
-    "Likely_Benign",
-    "Likely_Pathogenic",
-    "Pathogenic",
+    "Avirulent",
+    "Low_Pathogenicity",
+    "Moderate_High_Pathogenicity",
+    "Highly_Pathogenic",
 ]
+
+#: Backward-compatibility and folder alias map
+CLASS_NAME_TO_IDX: Dict[str, int] = {
+    "Avirulent": 0,
+    "Low_Pathogenicity": 1,
+    "Moderate_High_Pathogenicity": 2,
+    "Highly_Pathogenic": 3,
+    "Benign": 0,
+    "Likely_Benign": 1,
+    "Likely_Pathogenic": 2,
+    "Pathogenic": 3,
+}
 
 NUM_CLASSES: int = len(CLASS_LABELS)
 
@@ -472,28 +484,60 @@ class GenomicDatasetBuilder:
         found: List[Tuple[Path, int]] = []
         counts_per_class: Counter = Counter()
 
+        # ---- Check for canonical / split layout first ----
+        split_manifest = self.dataset_root / "splits" / "split_manifest.csv"
+        canonical_manifest = self.dataset_root / "canonical" / "manifest.csv"
+        manifest_path = split_manifest if split_manifest.exists() else (canonical_manifest if canonical_manifest.exists() else None)
+        if manifest_path:
+            logger.info("Discovering sequences from canonical manifest: %s", manifest_path)
+            fasta_dir = self.dataset_root / "canonical" / "fasta"
+            import csv
+            with manifest_path.open("r", encoding="utf-8") as fh:
+                reader = csv.DictReader(fh)
+                for r in reader:
+                    acc = r.get("insdc_accession") or r.get("record_id")
+                    pt = r.get("pathotype", "").upper()
+                    if pt == "HPAI":
+                        lbl = 3
+                    elif pt == "LPAI":
+                        lbl = 1
+                    else:
+                        subtype = r.get("subtype", "")
+                        lbl = SUBTYPE_TO_CLASS.get(subtype, 1)
+                    fp = fasta_dir / f"{acc}.fasta"
+                    if fp.exists():
+                        found.append((fp, lbl))
+                        counts_per_class[lbl] += 1
+            if found:
+                self._all_files = found
+                logger.info("File discovery complete from manifest — %d files total.", len(found))
+                return found
+
         # ---- Check for balanced directory layout (e.g. dataset_augmented/balanced/) ----
         balanced_dir = self.dataset_root / "balanced" if (self.dataset_root / "balanced").exists() else self.dataset_root
-        class_dirs_exist = any((balanced_dir / cls_name).exists() for cls_name in CLASS_LABELS)
+        all_possible_cls = list(CLASS_LABELS) + ["Benign", "Likely_Benign", "Likely_Pathogenic", "Pathogenic"]
+        class_dirs_exist = any((balanced_dir / cls_name).exists() for cls_name in all_possible_cls)
 
         if class_dirs_exist:
             logger.info("Discovering files from class-balanced layout in %s ...", balanced_dir)
-            for label, cls_name in enumerate(CLASS_LABELS):
+            for cls_name in all_possible_cls:
                 cls_dir = balanced_dir / cls_name
                 if not cls_dir.exists():
                     continue
+                label = CLASS_NAME_TO_IDX.get(cls_name, 0)
                 fasta_files = sorted(
                     list(cls_dir.glob("*.fasta"))
                     + list(cls_dir.glob("*.fa"))
                     + list(cls_dir.glob("*.fna"))
                 )
                 for fp in fasta_files:
-                    found.append((fp, label))
-                    counts_per_class[label] += 1
+                    if (fp, label) not in found:
+                        found.append((fp, label))
+                        counts_per_class[label] += 1
 
                 logger.info(
                     "  [balanced] %-20s -> class %d (%s) | %d file(s)",
-                    cls_name, label, cls_name, len(fasta_files)
+                    cls_name, label, CLASS_LABELS[label], len(fasta_files)
                 )
 
             if found:
@@ -508,16 +552,11 @@ class GenomicDatasetBuilder:
                     )
                 return found
 
-        # ---- Standard raw / healthy layout fallback ----
+        # ---- Standard raw layout fallback ----
         if not self._raw_dir.exists():
             raise FileNotFoundError(
                 f"Raw dataset directory not found: {self._raw_dir}. "
-                "Run ncbi_downloader.py first."
-            )
-        if not self._healthy_dir.exists():
-            raise FileNotFoundError(
-                f"Healthy dataset directory not found: {self._healthy_dir}. "
-                "Run download_healthy.py first."
+                "Run ncbi_downloader.py or ingest stage first."
             )
 
         # ---- Viral subtypes ----
@@ -553,36 +592,19 @@ class GenomicDatasetBuilder:
                 subtype, label, CLASS_LABELS[label], len(fasta_files),
             )
 
-        # ---- Healthy species ----
-        for species_dir in sorted(self._healthy_dir.iterdir()):
-            if not species_dir.is_dir():
-                continue
-            # genome.fna is the primary file; also accept cds.fna
-            genome_files = sorted(
-                list(species_dir.glob("genome.fna"))
-                + list(species_dir.glob("*.fna"))
-                + list(species_dir.glob("*.fasta"))
-            )
-            if not genome_files:
-                logger.warning(
-                    "No genome files in %s — species skipped.", species_dir
-                )
-                continue
-
-            label = SUBTYPE_TO_CLASS["healthy"]    # 0
-            for fp in genome_files:
-                found.append((fp, label))
-                counts_per_class[label] += 1
-
+        # Notice: Healthy host genomes are NOT added as a viral class.
+        # If healthy_dir exists, we log it for reference only.
+        if self._healthy_dir.exists():
             logger.info(
-                "  [healthy] %-8s  → class %d (Benign)  |  %d file(s)",
-                species_dir.name, label, len(genome_files),
+                "  [healthy] Host reference directory detected at %s (retained as host references, not viral class 0).",
+                self._healthy_dir,
             )
 
         self._all_files = found
         logger.info(
             "\nFile discovery complete — %d files total.", len(found)
         )
+        return found
         for cls_idx, cls_name in enumerate(CLASS_LABELS):
             logger.info(
                 "  Class %d (%s): %d file(s)",

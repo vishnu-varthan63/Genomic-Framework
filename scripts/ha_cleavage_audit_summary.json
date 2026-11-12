@@ -1,0 +1,77 @@
+{
+  "total_raw_ha_examined": 1991,
+  "junctions_detected": 1908,
+  "overall_calls": {
+    "LPAI": 1130,
+    "HPAI": 778,
+    "UNDETECTED_OR_TRUNCATED": 83
+  },
+  "subtype_calls": {
+    "H10N7": {
+      "LPAI": 129
+    },
+    "H10N8": {
+      "LPAI": 115,
+      "HPAI": 6,
+      "UNDETECTED_OR_TRUNCATED": 6
+    },
+    "H5N1": {
+      "HPAI": 125
+    },
+    "H5N2": {
+      "LPAI": 74,
+      "HPAI": 42,
+      "UNDETECTED_OR_TRUNCATED": 6
+    },
+    "H5N3": {
+      "LPAI": 123,
+      "UNDETECTED_OR_TRUNCATED": 5,
+      "HPAI": 12
+    },
+    "H5N6": {
+      "HPAI": 129,
+      "LPAI": 6,
+      "UNDETECTED_OR_TRUNCATED": 1
+    },
+    "H5N8": {
+      "HPAI": 186,
+      "UNDETECTED_OR_TRUNCATED": 19,
+      "LPAI": 10
+    },
+    "H5N9": {
+      "LPAI": 61,
+      "UNDETECTED_OR_TRUNCATED": 5,
+      "HPAI": 16
+    },
+    "H7N1": {
+      "LPAI": 142,
+      "HPAI": 16,
+      "UNDETECTED_OR_TRUNCATED": 6
+    },
+    "H7N2": {
+      "LPAI": 70,
+      "HPAI": 154,
+      "UNDETECTED_OR_TRUNCATED": 3
+    },
+    "H7N3": {
+      "LPAI": 83,
+      "HPAI": 39,
+      "UNDETECTED_OR_TRUNCATED": 11
+    },
+    "H7N7": {
+      "LPAI": 107,
+      "HPAI": 6,
+      "UNDETECTED_OR_TRUNCATED": 8
+    },
+    "H7N9": {
+      "LPAI": 80,
+      "UNDETECTED_OR_TRUNCATED": 2,
+      "HPAI": 29
+    },
+    "H9N2": {
+      "LPAI": 130,
+      "HPAI": 18,
+      "UNDETECTED_OR_TRUNCATED": 11
+    }
+  }
+}

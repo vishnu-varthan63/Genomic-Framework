@@ -159,7 +159,15 @@ class SequenceAligner:
     >>> print(amap.mismatch_positions)
     """
 
-    # Default synthetic reference (256 bp cyclic repeat of ACGT)
+    # Canonical Avian Influenza Hemagglutinin (HA) wild-type reference sequence (A/Goose/Guangdong/1/1996)
+    _CANONICAL_HA_REF: str = (
+        "ATGGAGAAAATAGTGCTTCTTCTTGCAATAGTCAGTCTTGTTAAAAGTGATCAGATTTGCATTGGTTACCATGCAAACAACTCGACA"
+        "GAGCAGGTTGACACAATAATGGAAAAGAACGTTACTGTTACACATGCCCAAGACATACTGGAAAAGACACACAACGGGAAGCTCTGC"
+        "GATCTAGATGGAGTGAAGCCTCTAATTTTGAGAGATTGTAGTGTAGCTGGATGGCTCCTCGGAAACCCAATGTGTGACGAATTCATC"
+        "AATGTGCCGGAATGGTCTTACATAGTGGAGAAGGCCAATCCAGTCAATGACCTCTGTTACCCAGGGGATTTCAATGACTATGAAGAA"
+        "TTGAAACACCTATTGAGCAGAATAAACCATTTTGAGAAAATTCAGATCATCCCCAAAAGTTCTTGGTCCAGTCATGAAGCCTCATTA"
+        "GGGGTGAGCTCAGCATGTCCATACCAGGGAAAGTCCTCCTTTTTCAGAAATGTGGTATGGCTTATCAAAAAGAACAGTACATACCCA"
+    )
     _DEFAULT_REF_LEN: int = 512
 
     def __init__(
@@ -167,14 +175,11 @@ class SequenceAligner:
         reference_seq: Optional[str] = None,
         seed: int = 42,
     ) -> None:
-        rng = random.Random(seed)
         if reference_seq is None:
-            bases = ["A", "C", "G", "T"]
-            self.reference_seq: str = "".join(
-                rng.choice(bases) for _ in range(self._DEFAULT_REF_LEN)
-            )
+            # Use canonical A/Goose/Guangdong/1/1996 wild-type HA reference
+            self.reference_seq: str = (self._CANONICAL_HA_REF * 2)[: self._DEFAULT_REF_LEN]
             logger.info(
-                "SequenceAligner — generated synthetic reference of length %d.",
+                "SequenceAligner — initialized canonical AIV HA reference sequence of length %d.",
                 len(self.reference_seq),
             )
         else:

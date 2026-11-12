@@ -63,7 +63,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 # Sequence / batch dimensions
-SEQ_LEN:       int = 128     # token sequence length fed to both extractors
+SEQ_LEN:       int = 512     # token sequence length (increased from 128 to capture HA/NA cleavage regions)
 BATCH_SIZE:    int = 2       # number of samples per mini-batch
 VOCAB_SIZE:    int = 4096    # nucleotide k-mer vocabulary size
 
@@ -71,19 +71,28 @@ VOCAB_SIZE:    int = 4096    # nucleotide k-mer vocabulary size
 DNABERT2_DIM:  int = 768     # DNABERT-2 published hidden size (fixed)
 HYENA_DIM:     int = 256     # HyenaDNA model dimension
 HIDDEN_DIM:    int = 512     # cross-attention fusion hidden dimension
-NUM_CLASSES:   int = 4       # classification output classes
+NUM_CLASSES:   int = 4       # pathotype classification output classes (single-task compat)
+
+# Multi-task head sizes
+NUM_SUBTYPES:  int = 20      # dynamic HxNy subtype classes (H1-H16, N1-N9 combinations)
+NUM_SEGMENTS:  int = 8       # PB2 PB1 PA HA NP NA M NS
+NUM_PATHOTYPES: int = 3      # LPAI  HPAI  INDETERMINATE
 
 # Mutation pipeline dimensions
 MAX_MUTATIONS: int = 32      # number of top mutations retained
 MUTATION_DIM:  int = 64      # feature vector size per mutation
 
-# Class label catalogue
+# Class label catalogue — legacy pathotype strata (for single-task compat)
 CLASS_LABELS: List[str] = [
-    "Benign",
-    "Likely_Benign",
-    "Likely_Pathogenic",
-    "Pathogenic",
+    "Avirulent",
+    "Low_Pathogenicity",
+    "Moderate_High_Pathogenicity",
+    "Highly_Pathogenic",
 ]
+
+# Multi-task label catalogues
+PATHOTYPE_LABELS: List[str] = ["LPAI", "HPAI", "INDETERMINATE"]
+SEGMENT_LABELS:   List[str] = ["PB2", "PB1", "PA", "HA", "NP", "NA", "M", "NS"]
 
 
 # ===========================================================================
@@ -468,12 +477,19 @@ class GenomicClassificationEngine(nn.Module):
         max_mutations: int = MAX_MUTATIONS,
         mutation_dim: int = MUTATION_DIM,
         dropout: float = 0.1,
+        # Multi-task head sizes (set to 0 to disable a head)
+        num_subtypes: int = NUM_SUBTYPES,
+        num_segments: int = NUM_SEGMENTS,
+        num_pathotypes: int = NUM_PATHOTYPES,
     ) -> None:
         super().__init__()
 
         self.seq_len = seq_len
         self.hidden_dim = hidden_dim
         self.num_classes = num_classes
+        self.num_subtypes = num_subtypes
+        self.num_segments = num_segments
+        self.num_pathotypes = num_pathotypes
 
         # --- Module 4: DNABERT-2 feature extractor ---
         self.dnabert2 = DNABERT2Extractor(
@@ -509,11 +525,25 @@ class GenomicClassificationEngine(nn.Module):
             pool_mode="mean",
         )
 
-        # --- Module 11: MLP classification head ---
+        # --- Module 11: Primary pathotype classification head ---
         self.classifier = MLPClassifier(
             hidden_dim=hidden_dim,
             num_classes=num_classes,
             dropout=0.3,
+        )
+
+        # --- Multi-task auxiliary heads (optional; disabled when size == 0) ---
+        # Subtype head: predict HxNy subtype
+        self.subtype_head: Optional[nn.Linear] = (
+            nn.Linear(hidden_dim, num_subtypes) if num_subtypes > 0 else None
+        )
+        # Segment head: predict which genomic segment (HA, NA, PB2, …)
+        self.segment_head: Optional[nn.Linear] = (
+            nn.Linear(hidden_dim, num_segments) if num_segments > 0 else None
+        )
+        # Pathotype binary head (LPAI / HPAI / INDETERMINATE) — finer grain than 4-class
+        self.pathotype_head: Optional[nn.Linear] = (
+            nn.Linear(hidden_dim, num_pathotypes) if num_pathotypes > 0 else None
         )
 
         self.apply(self._init_weights)
@@ -547,7 +577,8 @@ class GenomicClassificationEngine(nn.Module):
         token_ids: torch.Tensor,
         mutation_tensor: torch.Tensor,
         dna_padding_mask: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        return_multitask: bool = False,
+    ) -> Union[Tuple[torch.Tensor, torch.Tensor], Dict[str, torch.Tensor]]:
         """
         Full forward pass through all four neural network modules.
 
@@ -562,14 +593,18 @@ class GenomicClassificationEngine(nn.Module):
         dna_padding_mask : torch.Tensor | None
             Boolean padding mask for sequence positions.
             Shape: ``[batch_size, seq_len]``.
+        return_multitask : bool
+            If True, returns a dict containing primary logits, auxiliary multi-task
+            head logits (subtype, segment, pathotype), and fused representations.
 
         Returns
         -------
-        logits : torch.Tensor
-            Raw per-class logits.  Shape: ``[batch_size, num_classes]``.
-        fused : torch.Tensor
-            Intermediate fused representation (used by SHAP engine).
-            Shape: ``[batch_size, hidden_dim]``.
+        If return_multitask is False:
+            (logits, fused) where logits has shape ``[batch_size, num_classes]``
+            and fused has shape ``[batch_size, hidden_dim]``.
+        If return_multitask is True:
+            dict with keys 'logits', 'fused', and optionally 'subtype_logits',
+            'segment_logits', 'pathotype_logits'.
         """
         # --- Module 4: DNABERT-2 feature extraction ---
         dna_features = self.dnabert2(
@@ -590,7 +625,34 @@ class GenomicClassificationEngine(nn.Module):
         # --- Module 11: Classification head ---
         logits = self.classifier(fused)  # [B, num_classes]
 
+        if return_multitask:
+            out: Dict[str, torch.Tensor] = {
+                "logits": logits,
+                "fused": fused,
+            }
+            if self.subtype_head is not None:
+                out["subtype_logits"] = self.subtype_head(fused)
+            if self.segment_head is not None:
+                out["segment_logits"] = self.segment_head(fused)
+            if self.pathotype_head is not None:
+                out["pathotype_logits"] = self.pathotype_head(fused)
+            return out
+
         return logits, fused
+
+    def forward_multitask(
+        self,
+        token_ids: torch.Tensor,
+        mutation_tensor: torch.Tensor,
+        dna_padding_mask: Optional[torch.Tensor] = None,
+    ) -> Dict[str, torch.Tensor]:
+        """Convenience method for multi-task forward pass returning dictionary of logits."""
+        return self.forward(
+            token_ids=token_ids,
+            mutation_tensor=mutation_tensor,
+            dna_padding_mask=dna_padding_mask,
+            return_multitask=True,
+        )
 
     def __repr__(self) -> str:  # noqa: D401
         total_params = sum(p.numel() for p in self.parameters())

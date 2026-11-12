@@ -1,0 +1,134 @@
+{
+  "total_balanced_files": 72,
+  "total_balanced_sequences": 35211,
+  "unique_balanced_sequences": 33719,
+  "total_balanced_bases": 45909430,
+  "unique_accessions": 2796,
+  "classes": {
+    "Benign": {
+      "class_index": 0,
+      "num_files": 3,
+      "num_sequences": 1191,
+      "unique_sequences": 1078,
+      "exact_duplicates": 113,
+      "unique_accessions": 81,
+      "total_bases": 1385010,
+      "mean_length": 1162.9,
+      "median_length": 1500,
+      "min_length": 189,
+      "max_length": 1500,
+      "p25_length": 750,
+      "p75_length": 1500,
+      "host_sequences": 1129,
+      "viral_sequences": 62,
+      "subtypes": {
+        "HOST_DUCK": 1109,
+        "UNKNOWN": 82
+      },
+      "iupac_composition": {
+        "A": 447837,
+        "C": 279747,
+        "G": 364416,
+        "T": 292509,
+        "N": 501
+      }
+    },
+    "Likely_Benign": {
+      "class_index": 1,
+      "num_files": 37,
+      "num_sequences": 18185,
+      "unique_sequences": 17708,
+      "exact_duplicates": 477,
+      "unique_accessions": 1024,
+      "total_bases": 24653531,
+      "mean_length": 1355.71,
+      "median_length": 1500,
+      "min_length": 145,
+      "max_length": 1500,
+      "p25_length": 1500,
+      "p75_length": 1500,
+      "host_sequences": 180,
+      "viral_sequences": 18005,
+      "subtypes": {
+        "H5N2": 3456,
+        "H5N3": 3212,
+        "H7N2": 3851,
+        "H7N3": 3778,
+        "H9N2": 3869,
+        "UNKNOWN": 19
+      },
+      "iupac_composition": {
+        "A": 8451400,
+        "C": 4748542,
+        "G": 6058408,
+        "T": 5392844,
+        "N": 2337
+      }
+    },
+    "Likely_Pathogenic": {
+      "class_index": 2,
+      "num_files": 22,
+      "num_sequences": 10855,
+      "unique_sequences": 10256,
+      "exact_duplicates": 599,
+      "unique_accessions": 1171,
+      "total_bases": 13546658,
+      "mean_length": 1247.96,
+      "median_length": 1500,
+      "min_length": 175,
+      "max_length": 1500,
+      "p25_length": 1000,
+      "p75_length": 1500,
+      "host_sequences": 86,
+      "viral_sequences": 10769,
+      "subtypes": {
+        "H10N7": 1471,
+        "H10N8": 1749,
+        "H5N8": 1808,
+        "H10N4": 109,
+        "H10N3": 1,
+        "UNKNOWN": 365,
+        "H5N6": 2301,
+        "H7N7": 1582,
+        "H7N1": 1469
+      },
+      "iupac_composition": {
+        "A": 4600452,
+        "C": 2621855,
+        "G": 3362590,
+        "T": 2959083,
+        "N": 2678
+      }
+    },
+    "Pathogenic": {
+      "class_index": 3,
+      "num_files": 10,
+      "num_sequences": 4980,
+      "unique_sequences": 4678,
+      "exact_duplicates": 302,
+      "unique_accessions": 520,
+      "total_bases": 6324231,
+      "mean_length": 1269.93,
+      "median_length": 1500,
+      "min_length": 51,
+      "max_length": 1500,
+      "p25_length": 1000,
+      "p75_length": 1500,
+      "host_sequences": 0,
+      "viral_sequences": 4980,
+      "subtypes": {
+        "H5N1": 1947,
+        "H5N9": 1036,
+        "UNKNOWN": 142,
+        "H7N9": 1855
+      },
+      "iupac_composition": {
+        "A": 2181710,
+        "C": 1240134,
+        "G": 1535359,
+        "T": 1366609,
+        "N": 419
+      }
+    }
+  }
+}

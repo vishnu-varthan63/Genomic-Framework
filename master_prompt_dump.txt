@@ -1,0 +1,315 @@
+<USER_REQUEST>
+MASTER PROMPT — FORENSIC DATASET AUDIT, FRESH DOWNLOAD, VALIDATION AND REPRODUCIBLE DATASET REBUILD
+Project
+Avian Influenza Genomic Intelligence Framework
+Repository: [https://github.com/vishnu-varthan63/Genomic-Framework.git](https://github.com/vishnu-varthan63/Genomic-Framework.git)
+Recovered workspace:
+F:\vishnu\f\Projects\GEnomic-framework
+Other locations reported in the recovery report:
+Original backup: D:\vishnu\F\vishnu\f\Projects\GEnomic-framework
+Raw genomic repository pool: D:\dataset
+GitHub source archive: D:\Genomic framework\Genomic-Framework-main.zip
+Historical conversation and agent logs: inspect the recovery report for the exact location.
+Treat these paths as leads. Verify that each location exists before using it.
+Mission
+Conduct a complete, evidence-based audit of every existing genomic dataset, independently retrieve the required public datasets again, validate their biological relevance and metadata, compare old and new records, and build a clean, reproducible, versioned dataset for the project.
+Do not automatically trust the recovered dataset. Do not automatically discard it either. Retain only records that pass documented quality, provenance, relevance, deduplication, and labeling checks.
+Do not start model training until the dataset audit, labeling policy, leakage checks, and dataset manifest are complete.
+Phase 1 — Protect all existing data
+Inspect the workspace, backups, datasets, Git history, project documentation, and complete coding-agent conversation history.
+Preserve all original files. Never delete, overwrite, or modify the recovered raw dataset in place.
+Create a new dataset-recovery workspace or branch, separate from the original data.
+Record file paths, sizes, modification times, hashes, archive status, and available disk space.
+Detect incomplete downloads, corrupted archives, duplicate folders, broken FASTA files, and missing metadata.
+If the expected files are missing, report the exact missing paths rather than silently substituting other files.
+Do not commit large genomic files, credentials, API keys, private access tokens, or restricted-access sequences to GitHub.
+Phase 2 — Audit existing datasets before downloading
+Inspect all relevant directories, including:
+dataset/
+dataset_augmented/
+Any train, validation, test, raw, processed, reference, or curated directories
+Existing CSV, TSV, JSON, JSONL, FASTA, GenBank, metadata, accession, and checksum files
+Existing dataset-generation, downloading, augmentation, filtering, and statistics scripts
+The recovery report contains potentially conflicting historical counts:
+Raw repository pool: approximately 1,048,666 sequences
+Augmented pool: approximately 67,482 sequences
+Active curated benchmark: approximately 35,211 sequences
+Historical train/validation/test counts: 23,520 / 5,000 / 6,691
+Treat these as claims to verify, not ground truth.
+For each dataset, calculate and report:
+Number of physical files
+Number of records and unique accessions
+Number of unique sequences
+Total nucleotide base pairs
+Sequence-length distribution
+Number of complete and partial records
+Number of records with missing or conflicting metadata
+Number of duplicate and near-duplicate sequences
+Host and virus taxonomic composition
+Subtype, segment, collection-date, country, and accession distributions
+Label distribution and the provenance of every label
+Augmented versus original record counts
+Corrupted, empty, ambiguous, and rejected records
+Explain every discrepancy between historical counts and independently measured counts.
+Create a record-level inventory and a dataset-level summary.
+Phase 3 — Define the scientific task before selecting records
+Read the project documentation and historical decisions. Identify the intended prediction target and propose a scientifically defensible label policy.
+Distinguish these possible tasks:
+Viral subtype classification.
+High- versus low-pathogenicity classification.
+Four-level pathogenicity classification.
+Host-species classification.
+Do not combine these targets into one task without a scientific justification.
+The intended project may have used these four labels:
+Benign
+Likely_Benign
+Likely_Pathogenic
+Pathogenic
+Do not assume these labels are valid simply because they appear in existing code or metadata. Audit their biological definitions, evidence, source, and applicability.
+Critical labeling requirements:
+Do not infer pathogenicity from subtype alone.
+Do not assume every H5 or H7 sequence has the same pathogenicity.
+Do not treat every non-H5/H7 subtype as low pathogenicity.
+Do not automatically label healthy chicken, duck, goose, turkey, or quail host genomes as benign viral sequences.
+Do not invent labels for records whose evidence is insufficient.
+Do not transform missing labels into presumed negative labels.
+Do not use random, synthetic, or guessed labels as ground truth.
+Prefer explicit, documented source annotations and applicable official pathogenicity determinations. Where classification requires specialist interpretation, flag the record for manual review.
+If four classes cannot be supported consistently by available evidence, report this and recommend a defensible alternative. Do not silently change the project's target.
+Phase 4 — Use these data sources
+Primary sequence repositories
+NCBI Virus:
+[https://www.ncbi.nlm.nih.gov/labs/virus/](https://www.ncbi.nlm.nih.gov/labs/virus/)
+NCBI Datasets:
+[https://www.ncbi.nlm.nih.gov/datasets/](https://www.ncbi.nlm.nih.gov/datasets/)
+GenBank nucleotide records:
+[https://www.ncbi.nlm.nih.gov/nuccore/](https://www.ncbi.nlm.nih.gov/nuccore/)
+European Nucleotide Archive:
+[https://www.ebi.ac.uk/ena/browser/home](https://www.ebi.ac.uk/ena/browser/home)
+DDBJ:
+[https://www.ddbj.nig.ac.jp/](https://www.ddbj.nig.ac.jp/)
+Influenza Research Database:
+[https://www.fludb.org/](https://www.fludb.org/)
+GISAID:
+[https://gisaid.org/](https://gisaid.org/)
+Use GISAID only through authorized access and in compliance with its current access agreement. If authentication, approval, or manual interaction is required, prepare a clear instruction for the user. Never bypass access controls.
+Official surveillance and corroboration sources
+WOAH WAHIS:
+[https://wahis.woah.org/](https://wahis.woah.org/)
+FAO EMPRES-i:
+[https://data.apps.fao.org/empres-i/](https://data.apps.fao.org/empres-i/)
+WHO FluNet:
+[https://www.who.int/tools/flunet/](https://www.who.int/tools/flunet/)
+ICAR–NIHSAD:
+[https://nihsad.nic.in/](https://nihsad.nic.in/)
+ICAR:
+[https://icar.org.in/](https://icar.org.in/)
+Department of Animal Husbandry and Dairying, India:
+[https://dahd.gov.in/](https://dahd.gov.in/)
+Verify that each source currently offers the required information, API, download method, license, and access permissions before implementation.
+Prioritize primary sequence records. Use surveillance sources to corroborate disease events and metadata. Do not represent surveillance counts as nucleotide sequence records.
+NCBI, ENA, and DDBJ may contain overlapping records through international exchange. Never count the same biological record multiple times just because it appears in multiple repositories.
+Phase 5 — Produce a source acquisition plan
+Before bulk downloading, generate a source-by-source acquisition plan that documents:
+Source name and official URL
+Type of data available
+Query and filtering criteria
+Intended date range
+Host and organism criteria
+Subtype and segment requirements
+Metadata fields available
+API, command-line, or bulk-download method
+Authentication or approval requirements
+Rate limits and download restrictions
+Licensing and redistribution limitations
+Estimated record counts and download size, where measurable
+Review the historical project scope before fixing the date range. If the previous ten-year requirement remains applicable, evaluate 2015-01-01 through 2025-12-31 and make the interval configurable. Explain whether records from 2026 or earlier years are needed for the scientific objective.
+Use reproducible queries and save the exact queries, timestamps, source versions, and accession lists.
+Phase 6 — Download safely and reproducibly
+Implement a resumable acquisition pipeline using supported official APIs, command-line clients, or documented bulk downloads.
+Requirements:
+Separate source-specific download adapters.
+Use batching, retries with backoff, rate limiting, and resumable downloads.
+Save raw files unchanged.
+Preserve accession.version identifiers.
+Save source metadata and original headers.
+Verify checksums when provided and calculate local SHA-256 hashes.
+Record failed, skipped, inaccessible, and superseded accessions.
+Log every download operation and error.
+Make repeated runs idempotent.
+Never require passwords or API keys to be hardcoded in source files.
+Never bypass authentication, CAPTCHAs, access restrictions, or rate limits.
+A failed source should not silently cause the pipeline to report a complete download.
+Phase 7 — Establish the canonical record and metadata schema
+Create one canonical record table containing, wherever available:
+Stable internal record ID
+Accession and accession version
+Source repository
+Original record identifier
+Virus name and taxonomy
+Host species
+Influenza type and subtype
+Genome segment
+Strain or isolate
+Collection date and date precision
+Country or region
+Sequence length
+Completeness status
+Original nucleotide sequence hash
+Quality-control status
+Label and target definition
+Label evidence and authoritative source
+Source URL and retrieval timestamp
+License or use restrictions
+Duplicate group ID
+Inclusion/exclusion decision
+Exclusion reason
+Keep original metadata alongside normalized metadata. Do not discard information simply because it cannot be standardized.
+Phase 8 — Validate sequence quality and provenance
+Implement and test:
+FASTA/GenBank parsing
+Empty and malformed sequence detection
+Alphabet and ambiguity checks using the appropriate nucleotide/IUPAC rules
+Sequence-length and completeness checks
+Influenza segment and genome representation checks
+Accession validation and version tracking
+Exact duplicate detection
+Near-duplicate and strain-level redundancy analysis
+Host and virus taxonomy validation
+Metadata consistency checks
+Collection-date validation
+Provenance and source-attribution checks
+Do not impose one arbitrary minimum length on every segment or every sequence type. Define criteria appropriate to the intended task and document them.
+Keep full viral genomes, individual segments, CDS records, and raw sequencing reads distinguishable. Do not mix them as if they were interchangeable samples.
+Phase 9 — Deduplicate and reconcile repositories
+Use accession/version, sequence hashes, strain/isolate, segment, collection metadata, and near-duplicate analysis.
+Distinguish:
+The same accession mirrored across repositories
+Multiple versions of the same record
+Duplicate files containing the same sequence
+Different accessions for identical sequences
+Related but non-identical sequences
+Different segments belonging to one isolate
+Never merge records merely because they share a subtype. Preserve provenance for merged or excluded records.
+Produce a reconciliation report listing old records, new records, retained records, duplicates, updated versions, rejected records, and unresolved conflicts.
+Phase 10 — Handle host genomes separately
+Healthy poultry reference genomes may include:
+Chicken (Gallus gallus)
+Duck (Anas platyrhynchos)
+Turkey (Meleagris gallopavo)
+Goose (Anser anser)
+Japanese quail (Coturnix japonica)
+Keep these in a separate host-reference collection with their own accession, assembly version, annotation, and quality checks.
+Do not add host genomes as the Benign class of a viral pathogenicity classifier. They are different biological sequence types.
+If host genomes are useful for reference comparisons or host-aware analysis, document that separate purpose and keep them out of the viral pathogenicity training split unless the task is explicitly redesigned and justified.
+Phase 11 — Rebuild the curated dataset
+Create separate, traceable directories, for example:
+dataset/
+raw/
+metadata/
+validated/
+excluded/
+host_references/
+curated/
+splits/
+manifests/
+reports/
+Do not overwrite historical data. Store the new dataset under a versioned directory until it is audited and approved.
+Maintain separate datasets for:
+Original source records.
+Validated original records.
+Curated, labeled records.
+Training augmentation.
+Final training, validation, and test splits.
+Augmented records must never be presented as new independently collected biological samples.
+Phase 12 — Prevent data leakage
+Before creating splits:
+Identify duplicates and near-duplicates.
+Group records from the same isolate or source sample where possible.
+Keep related sequences and augmentation descendants in the same split.
+Investigate overlap between the historical and newly downloaded test sets.
+Prefer an isolate- or cluster-aware split.
+Consider temporal holdout evaluation if scientifically appropriate.
+Fit data-dependent preprocessing only on training data.
+Do not use the final test set to choose features, tune thresholds, or select the best model.
+Generate a leakage report and an accession-level split manifest.
+Do not force the historical 23,520 / 5,000 / 6,691 split if the rebuilt data or leakage checks make it invalid. Document the replacement and explain why.
+Phase 13 — Audit augmentation separately
+Inspect the existing augmentation scripts and augmented dataset.
+Determine:
+Which original record generated each augmented record
+Which transformations were applied
+Whether transformations preserve valid biological interpretation
+Whether labels remain justified after transformation
+Whether any augmented sequence crosses data-split boundaries
+Whether the augmentation changes sequence identity, mutation patterns, or class evidence
+Do not augment before splitting. Do not use augmentation to fabricate class balance without reporting it. Exclude any augmentation that cannot be traced to a valid parent record or whose label is no longer justified.
+Phase 14 — Build reproducible outputs
+Generate:
+DATA_SOURCE_REGISTER.md
+DATASET_AUDIT_REPORT.md
+DATASET_LABELING_POLICY.md
+DATASET_QC_REPORT.md
+DATASET_DEDUPLICATION_REPORT.md
+DATASET_LEAKAGE_REPORT.md
+DATASET_MANIFEST.csv
+DATASET_EXCLUSIONS.csv
+DATASET_SPLIT_MANIFEST.csv
+DATASET_STATISTICS.json
+DATASET_DOWNLOAD_LOG.jsonl
+DATASET_REPRODUCTION_GUIDE.md
+Reports must include actual measured values, not hardcoded historical claims.
+For every number, identify its source, calculation method, and relevant dataset version.
+Phase 15 — Integrate with the existing model and project
+Inspect the current preprocessing pipeline, mutation processor, DNABERT-2-inspired encoder, HyenaDNA-inspired encoder, fusion module, classifier, training scripts, evaluation scripts, demo, website, and paper.
+Do not change the architecture merely to accommodate an undocumented dataset inconsistency.
+Check whether the pipeline's assumptions about:
+Sequence length
+Nucleotide alphabet
+Genome segments
+Mutation references
+Input tensor shapes
+Label encoding
+Number of classes
+Class order
+match the newly curated dataset.
+Update configurations, scripts, website statistics, and paper dataset descriptions only after the data is verified.
+Keep research metrics separate from demo-model metrics. Do not claim that a model has been retrained or evaluated unless the corresponding run and outputs exist.
+Phase 16 — Validation and execution gates
+Gate A: Audit only
+Inspect the data and produce the acquisition plan. No bulk download, deletion, label changes, or training.
+Gate B: Download and validate
+After the acquisition plan is reviewed, download permitted public records, validate them, and produce the reconciliation report.
+Gate C: Curate and split
+Apply the approved labeling policy, remove invalid records, deduplicate, check leakage, and generate manifests.
+Gate D: Integration
+Update the model's dataset loader and configuration, then run unit tests, integration tests, and small non-research smoke tests.
+Gate E: Research training
+Train only after the user has reviewed the label policy, source coverage, final dataset counts, and leakage report. Preserve the exact configuration, random seed, logs, checkpoint, and evaluation outputs.
+Non-negotiable rules
+Never fabricate data, labels, sources, accessions, metrics, or download success.
+Never silently discard conflicting records.
+Never assume the largest dataset is the best dataset.
+Never equate a subtype with a verified pathogenicity label.
+Never mix host genomes and viral genomes as equivalent classifier examples.
+Never treat augmented sequences as independent biological observations.
+Never train on an unverified or leaking test split.
+Never delete or overwrite the recovered original datasets.
+Never expose restricted data or credentials.
+If a scientific decision requires expert judgment, document the options and request review rather than guessing.
+Final deliverable
+Provide a concise decision report answering:
+How many existing records were valid?
+How many were invalid, duplicated, mislabeled, or unresolved?
+How many new records were successfully downloaded from each source?
+How many unique biological records remain after reconciliation?
+What is the final class distribution and the evidence for each label?
+Are the training, validation, and test sets free of identified leakage?
+Are host references and augmentation properly separated?
+What remains blocked by authentication, licensing, or manual review?
+Is the rebuilt dataset ready for training?
+End with a clear status: READY FOR REVIEW, READY FOR TRAINING, or BLOCKED, supported by the actual audit results.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-15T01:26:26+05:30.
+</ADDITIONAL_METADATA>

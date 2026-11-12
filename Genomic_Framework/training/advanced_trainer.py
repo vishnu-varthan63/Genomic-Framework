@@ -31,6 +31,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -233,6 +234,40 @@ class AdvancedMetricsTracker:
 
 
 # ==============================================================================
+# FOCAL LOSS FOR CLASS IMBALANCE MITIGATION
+# ==============================================================================
+
+class FocalLoss(nn.Module):
+    """
+    Multi-class Focal Loss with dynamic alpha weighting and focusing gamma.
+    FL(p_t) = - alpha_t * (1 - p_t)^gamma * log(p_t)
+    Suppresses easy majority-class gradients and forces high gradient updates
+    on hard/minority classes (such as Avirulent/Benign host genomes).
+    """
+
+    def __init__(
+        self,
+        weight: Optional[torch.Tensor] = None,
+        gamma: float = 2.0,
+        reduction: str = "mean",
+    ) -> None:
+        super().__init__()
+        self.weight = weight
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(self, inputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        ce_loss = F.cross_entropy(inputs, targets, weight=self.weight, reduction="none")
+        pt = torch.exp(-ce_loss)
+        focal_loss = ((1.0 - pt) ** self.gamma) * ce_loss
+        if self.reduction == "mean":
+            return focal_loss.mean()
+        elif self.reduction == "sum":
+            return focal_loss.sum()
+        return focal_loss
+
+
+# ==============================================================================
 # ADVANCED RESEARCH TRAINER
 # ==============================================================================
 
@@ -282,9 +317,16 @@ class AdvancedTrainer:
         else:
             self.model = model.to(self.device)
 
-        # Loss Function
+        # Loss Function (Supports Focal Loss for high-consequence class imbalance mitigation)
         cw = class_weights.to(self.device) if class_weights is not None else None
-        self.criterion = nn.CrossEntropyLoss(weight=cw)
+        loss_type = config.get("optimization", {}).get("loss_type", "focal").lower()
+        if loss_type == "focal":
+            focal_gamma = float(config.get("optimization", {}).get("focal_gamma", 2.0))
+            self.criterion = FocalLoss(weight=cw, gamma=focal_gamma)
+            logger.info("Using Focal Loss with gamma=%.1f and dynamic class weights for imbalance mitigation", focal_gamma)
+        else:
+            self.criterion = nn.CrossEntropyLoss(weight=cw)
+            logger.info("Using Weighted Cross Entropy Loss")
 
         # Optimization & AMP Parameters
         opt_cfg = config.get("optimization", {})
