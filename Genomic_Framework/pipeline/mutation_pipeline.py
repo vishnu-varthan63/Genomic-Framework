@@ -253,7 +253,7 @@ class SequenceAligner:
             structural_diffs=structural_diffs,
         )
 
-        logger.info(
+        logger.debug(
             "Alignment complete — cmp_len=%d, mismatches=%d, edit_dist=%d",
             cmp_len,
             len(mismatch_positions),
@@ -395,7 +395,7 @@ class MutationProcessor:
         batch_tensor = single_sample_tensor.unsqueeze(0).repeat(batch_size, 1, 1)
         # Shape: [batch_size, max_mutations, mutation_dim]
 
-        logger.info(
+        logger.debug(
             "MutationProcessor output tensor shape: %s",
             list(batch_tensor.shape),
         )

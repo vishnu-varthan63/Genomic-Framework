@@ -258,11 +258,12 @@ class CrossAttentionFusion(nn.Module):
         mut_q = self.mutation_proj(mutation_features)      # [B, M, H]
 
         # --- 4. Cross-attention (Q=mutations, K=V=context) ---
-        attn_out, attn_weights = self.cross_attention(
+        attn_out, _ = self.cross_attention(
             query=mut_q,
             key=context_pool,
             value=context_pool,
             key_padding_mask=key_padding_mask,
+            need_weights=False,
         )                                                   # [B, M, H]
 
         # Residual + norm

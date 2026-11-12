@@ -257,9 +257,15 @@ class FocalLoss(nn.Module):
         self.reduction = reduction
 
     def forward(self, inputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-        ce_loss = F.cross_entropy(inputs, targets, weight=self.weight, reduction="none")
-        pt = torch.exp(-ce_loss)
-        focal_loss = ((1.0 - pt) ** self.gamma) * ce_loss
+        unweighted_ce = F.cross_entropy(inputs, targets, reduction="none")
+        pt = torch.exp(-unweighted_ce)
+        focal_term = ((1.0 - pt) ** self.gamma) * unweighted_ce
+        if self.weight is not None:
+            alpha_t = self.weight[targets]
+            focal_loss = alpha_t * focal_term
+        else:
+            focal_loss = focal_term
+
         if self.reduction == "mean":
             return focal_loss.mean()
         elif self.reduction == "sum":
@@ -622,6 +628,14 @@ class AdvancedTrainer:
 
             # Record batch metrics
             self.train_tracker.update(logits.detach(), labels, loss.item() * self.accum_steps)
+
+            if step % self.log_every_n_steps == 0 or step == len(self.train_loader):
+                cur_norm = grad_norms[-1] if grad_norms else 0.0
+                logger.info(
+                    "  [Epoch %d/%d | Step %d/%d] Batch Loss: %.4f | Grad Norm: %.3f",
+                    self.current_epoch, self.max_epochs, step, len(self.train_loader),
+                    loss.item() * self.accum_steps, cur_norm,
+                )
 
         metrics = self.train_tracker.compute(compute_auc=False)
         avg_grad_norm = float(np.mean(grad_norms)) if grad_norms else 0.0

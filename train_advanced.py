@@ -15,6 +15,7 @@ import logging
 import sys
 from pathlib import Path
 import yaml
+import torch
 
 _PROJECT_ROOT = Path(__file__).resolve().parent
 if str(_PROJECT_ROOT) not in sys.path:
@@ -97,7 +98,9 @@ def main(argv: list[str] | None = None) -> int:
     log_dir = output_dir / config["paths"].get("log_dir", "logs")
     configure_logging(log_dir / "training.log")
 
-    logger.info("Starting Advanced Training Script with Config: %s", args.config)
+    num_threads = int(config.get("system", {}).get("num_threads", 6))
+    torch.set_num_threads(num_threads)
+    logger.info("Starting Advanced Training Script with Config: %s (torch threads=%d)", args.config, num_threads)
 
     dataset_root = Path(config["paths"]["dataset_root"])
     builder = GenomicDatasetBuilder(
@@ -110,6 +113,7 @@ def main(argv: list[str] | None = None) -> int:
         num_workers=config["data"]["num_workers"],
         seed=config["system"]["seed"],
         class_balance=config["data"]["class_balance"],
+        samples_per_epoch=config["data"].get("samples_per_epoch", None),
     )
 
     try:

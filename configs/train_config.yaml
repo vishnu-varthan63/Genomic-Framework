@@ -13,6 +13,7 @@ system:
   benchmark: false
   device: "auto"              # "auto", "cuda", "mps", "cpu"
   multi_gpu: true            # Use DataParallel if multiple GPUs detected
+  num_threads: 6             # Optimized PyTorch CPU worker threads
 
 # ------------------------------------------------------------------------------
 # Paths Configuration
@@ -46,17 +47,18 @@ model:
 # Dataset & DataLoader Hyperparameters
 # ------------------------------------------------------------------------------
 data:
-  batch_size: 16
+  batch_size: 32
   num_workers: 0
-  pin_memory: true
+  pin_memory: false
   prefetch_factor: 2
   train_ratio: 0.70
   val_ratio: 0.15
   test_ratio: 0.15
   class_balance: true
   class_weighting: true
-  stratified: true          # FIX: Enable per-class stratified split (was false/absent)
-  max_sequences_per_file: null       # FIX: null/None for unlimited sequence loading (loads all 35,211 sequences)
+  stratified: true          # Per-class stratified split
+  samples_per_epoch: 1280   # Balanced representative samples per epoch across all 30k training sequences
+  max_sequences_per_file: null       # Unlimited sequence loading
 
 # ------------------------------------------------------------------------------
 # Optimization Settings
@@ -65,38 +67,38 @@ optimization:
   optimizer: "adamw"          # "adamw", "adam", "sgd"
   loss_type: "focal"          # "focal", "cross_entropy"
   focal_gamma: 2.0            # Focusing parameter for class imbalance
-  learning_rate: 0.0001
+  learning_rate: 0.0003
   weight_decay: 0.01
   betas: [0.9, 0.999]
   eps: 1.0e-08
   gradient_clipping: 1.0
   gradient_accumulation_steps: 1
-  use_amp: true               # Automatic Mixed Precision for CUDA
-  nan_loss_detection: true    # FIX: NaN loss skip-step enabled
-  gradient_explosion_threshold: 500.0  # FIX: Set threshold to 500.0 for 10M+ param global L2 norm
+  use_amp: false              # Automatic Mixed Precision for CUDA (false for CPU)
+  nan_loss_detection: true    # NaN loss skip-step enabled
+  gradient_explosion_threshold: 500.0  # Set threshold to 500.0 for 10M+ param global L2 norm
 
 # ------------------------------------------------------------------------------
 # Learning Rate Scheduler Settings
 # ------------------------------------------------------------------------------
 scheduler:
   name: "cosine"              # "cosine", "plateau", "onecycle", "linear"
-  warmup_epochs: 5            # FIX: Linear warmup for first N epochs (prevents cold LR spike)
+  warmup_epochs: 1            # Linear warmup for first N epochs
   min_lr: 1.0e-06
-  plateau_patience: 5
+  plateau_patience: 3
   plateau_factor: 0.5
 
 # ------------------------------------------------------------------------------
 # Epoch & Early Stopping Controls
 # ------------------------------------------------------------------------------
 training:
-  max_epochs: 50
-  min_epochs: 25
+  max_epochs: 6
+  min_epochs: 3
   early_stopping:
     enabled: true
-    patience: 15
+    patience: 3
     min_delta: 0.0001
   model_selection_metric: "val_f1"  # "val_f1", "val_accuracy", "val_loss"
-  checkpoint_interval: 5
+  checkpoint_interval: 1
   log_every_n_steps: 10
 
 # ------------------------------------------------------------------------------

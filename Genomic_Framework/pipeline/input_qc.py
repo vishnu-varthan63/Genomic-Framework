@@ -205,7 +205,7 @@ class GenomicSequenceIngester:
             "wall_time_s": round(wall_time, 6),
         }
 
-        logger.info(
+        logger.debug(
             "QC complete — accepted=%d / %d in %.4f s",
             len(cleaned),
             len(sequences),

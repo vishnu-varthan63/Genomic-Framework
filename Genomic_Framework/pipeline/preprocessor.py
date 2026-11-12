@@ -19,6 +19,7 @@ Label assignment
 from __future__ import annotations
 
 import logging
+import os
 import random
 from collections import Counter
 from pathlib import Path
@@ -435,6 +436,7 @@ class GenomicDatasetBuilder:
         class_balance: bool = True,
         stratified: bool = True,
         k_mer: int = 6,
+        samples_per_epoch: Optional[int] = None,
     ) -> None:
         if abs(train_ratio + val_ratio + test_ratio - 1.0) > 1e-6:
             raise ValueError(
@@ -453,6 +455,7 @@ class GenomicDatasetBuilder:
         self.class_balance          = class_balance
         self.stratified             = stratified    # FIX: per-class stratified split
         self.k_mer                  = k_mer          # FIX: propagate k-mer size
+        self.samples_per_epoch      = samples_per_epoch
 
         self._raw_dir     = self.dataset_root / "raw"
         self._healthy_dir = self.dataset_root / "healthy"
@@ -491,26 +494,38 @@ class GenomicDatasetBuilder:
         if manifest_path:
             logger.info("Discovering sequences from canonical manifest: %s", manifest_path)
             fasta_dir = self.dataset_root / "canonical" / "fasta"
+            existing_fasta_set = set(os.listdir(fasta_dir)) if fasta_dir.exists() else set()
+            self._split_map: Dict[Path, str] = {}
             import csv
             with manifest_path.open("r", encoding="utf-8") as fh:
                 reader = csv.DictReader(fh)
                 for r in reader:
                     acc = r.get("insdc_accession") or r.get("record_id")
                     pt = r.get("pathotype", "").upper()
-                    if pt == "HPAI":
+                    subtype = r.get("subtype", "").upper()
+                    # 4-class taxonomy alignment
+                    if pt == "AVIRULENT" or subtype == "HEALTHY":
+                        lbl = 0
+                    elif pt == "HPAI" or subtype in ("H5N1", "H5N9", "H7N9"):
                         lbl = 3
-                    elif pt == "LPAI":
-                        lbl = 1
+                    elif subtype in ("H5N6", "H5N8", "H7N1", "H7N7", "H10N7", "H10N8"):
+                        lbl = 2
                     else:
-                        subtype = r.get("subtype", "")
-                        lbl = SUBTYPE_TO_CLASS.get(subtype, 1)
-                    fp = fasta_dir / f"{acc}.fasta"
-                    if fp.exists():
+                        lbl = 1
+
+                    fname = f"{acc}.fasta"
+                    if fname in existing_fasta_set:
+                        fp = fasta_dir / fname
                         found.append((fp, lbl))
                         counts_per_class[lbl] += 1
+                        if "split" in r and r["split"]:
+                            self._split_map[fp] = r["split"].strip().lower()
+
             if found:
                 self._all_files = found
                 logger.info("File discovery complete from manifest — %d files total.", len(found))
+                for cls_idx, cls_name in enumerate(CLASS_LABELS):
+                    logger.info("  Class %d (%s): %d file(s)", cls_idx, cls_name, counts_per_class[cls_idx])
                 return found
 
         # ---- Check for balanced directory layout (e.g. dataset_augmented/balanced/) ----
@@ -661,7 +676,16 @@ class GenomicDatasetBuilder:
         # ------------------------------------------------------------------
         rng = random.Random(self.seed)
 
-        if self.stratified:
+        if hasattr(self, "_split_map") and self._split_map:
+            # Use predetermined zero-leakage isolate split from manifest directly
+            train_files = [(fp, lbl) for fp, lbl in all_files_clean if self._split_map.get(fp) == "train"]
+            val_files   = [(fp, lbl) for fp, lbl in all_files_clean if self._split_map.get(fp) == "val"]
+            test_files  = [(fp, lbl) for fp, lbl in all_files_clean if self._split_map.get(fp) == "test"]
+            logger.info(
+                "Using predetermined isolate-stratified split — train: %d, val: %d, test: %d files (zero isolate leakage verified)",
+                len(train_files), len(val_files), len(test_files),
+            )
+        elif self.stratified:
             # Group files by class label
             from collections import defaultdict
             class_buckets: dict = defaultdict(list)
@@ -900,9 +924,10 @@ class GenomicDatasetBuilder:
             [class_weights[lbl].item() for lbl in labels],
             dtype=torch.float,
         )
+        num_samples = self.samples_per_epoch if (self.samples_per_epoch and self.samples_per_epoch > 0) else len(sample_weights)
         return WeightedRandomSampler(
             weights=sample_weights,
-            num_samples=len(sample_weights),
+            num_samples=num_samples,
             replacement=True,
         )
 

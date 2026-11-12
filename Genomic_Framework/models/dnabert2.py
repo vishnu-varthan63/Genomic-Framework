@@ -178,6 +178,7 @@ class _TransformerEncoderBlock(nn.Module):
         attn_out, _ = self.self_attn(
             x, x, x,
             key_padding_mask=key_padding_mask,
+            need_weights=False,
         )
         x = self.norm1(x + attn_out)
 
