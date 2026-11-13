@@ -374,6 +374,7 @@ class AdvancedTrainer:
         self.max_epochs = int(tr_cfg.get("max_epochs", 50))
         self.min_epochs = int(tr_cfg.get("min_epochs", 25))
         self.selection_metric = tr_cfg.get("model_selection_metric", "val_f1")
+        self.log_every_n_steps = int(tr_cfg.get("log_every_n_steps", 10))
 
         es_cfg = tr_cfg.get("early_stopping", {})
         self.es_enabled = bool(es_cfg.get("enabled", True))
