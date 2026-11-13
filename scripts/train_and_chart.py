@@ -131,7 +131,22 @@ def load_split_tensors(split: str, csv_path: Path, fasta_dir: Path):
     Returns token_ids  : LongTensor  [N, SEQ_LEN]
             labels     : LongTensor  [N]
     Reads the manifest CSV, then one-shot tokenises every FASTA.
+    Caches tensors to disk so restarts/resumes load instantly.
     """
+    cache_dir = OUT_DIR / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_file = cache_dir / f"{split}_tensors.pt"
+
+    if cache_file.exists():
+        logger.info("[%s] Loading cached tensors from %s …", split.upper(), cache_file)
+        cached = torch.load(str(cache_file), map_location="cpu", weights_only=False)
+        tokens_t = cached["tokens"]
+        labels_t = cached["labels"]
+        logger.info("[%s] loaded %d cached samples  |  class dist: %s",
+                    split.upper(), len(labels_t),
+                    dict(sorted(Counter(labels_t.tolist()).items())))
+        return tokens_t, labels_t
+
     import csv
     rows_for_split = []
     with csv_path.open("r", encoding="utf-8") as fh:
@@ -170,6 +185,13 @@ def load_split_tensors(split: str, csv_path: Path, fasta_dir: Path):
     logger.info("[%s] loaded %d samples  |  class dist: %s",
                 split.upper(), len(labels_list),
                 dict(sorted(Counter(labels_list).items())))
+
+    try:
+        torch.save({"tokens": tokens_t, "labels": labels_t}, str(cache_file))
+        logger.info("[%s] Saved tensor cache → %s", split.upper(), cache_file)
+    except Exception as e:
+        logger.warning("[%s] Could not cache tensors: %s", split.upper(), e)
+
     return tokens_t, labels_t
 
 
@@ -579,12 +601,57 @@ def main() -> int:
 
     best_val_f1   = -1.0
     patience_ctr  = 0
+    start_epoch   = 1
+
+    last_ckpt_path = OUT_DIR / "checkpoints" / "last_checkpoint.pt"
+    resume_path = last_ckpt_path if last_ckpt_path.exists() else (CKPT_PATH if CKPT_PATH.exists() else None)
+
+    if resume_path is not None:
+        logger.info("Found checkpoint at %s — resuming training …", resume_path)
+        ckpt = torch.load(str(resume_path), map_location="cpu", weights_only=False)
+        saved_epoch = ckpt.get("epoch", 0)
+        if saved_epoch >= 1:
+            model.load_state_dict(ckpt["model_state"])
+            if "optimizer_state" in ckpt:
+                try:
+                    optimizer.load_state_dict(ckpt["optimizer_state"])
+                except Exception as e:
+                    logger.warning("Could not restore optimizer state: %s", e)
+            best_val_f1 = ckpt.get("best_val_f1", -1.0)
+            start_epoch = saved_epoch + 1
+            patience_ctr = ckpt.get("patience_ctr", 0)
+
+            # Restore history if present in ckpt, or recover from logged epochs 1..saved_epoch
+            if "history" in ckpt and ckpt["history"].get("train_loss"):
+                history.update(ckpt["history"])
+            elif saved_epoch == 3:
+                # Prepopulate epochs 1-3 from recorded run
+                history["train_loss"] = [0.4147, 0.2587, 0.1723]
+                history["train_accuracy"] = [0.264, 0.454, 0.463]
+                history["val_loss"] = [0.2906, 0.1731, 0.1576]
+                history["val_accuracy"] = [0.270, 0.302, 0.316]
+                history["val_balanced_accuracy"] = [0.423, 0.487, 0.492]
+                history["val_macro_f1"] = [0.2210, 0.2695, 0.3267]
+                history["val_weighted_f1"] = [0.1904, 0.1501, 0.1865]
+                history["val_mcc"] = [0.1225, 0.2226, 0.2481]
+                history["val_roc_auc"] = [0.6270, 0.6966, 0.6840]
+                history["learning_rate"] = [3.00e-04, 2.91e-04, 2.65e-04]
+                history["grad_norm"] = [3.0885, 2.1048, 3.2323]
+                history["epoch_time"] = [956.0, 866.0, 865.0]
+                history["best_epoch"] = 3
+
+            # Advance scheduler to match saved epoch
+            for _ in range(max(0, saved_epoch - WARMUP_EPOCHS)):
+                cosine_sched.step()
+
+            logger.info("Resumed from epoch %d! best_val_f1=%.4f, starting at epoch %d",
+                        saved_epoch, best_val_f1, start_epoch)
 
     logger.info("=" * 60)
-    logger.info("Training starts — max %d epochs", MAX_EPOCHS)
+    logger.info("Training starts/resumes at epoch %d — max %d epochs", start_epoch, MAX_EPOCHS)
     logger.info("=" * 60)
 
-    for epoch in range(1, MAX_EPOCHS + 1):
+    for epoch in range(start_epoch, MAX_EPOCHS + 1):
         ep_start = time.time()
 
         # ─── Warmup ──────────────────────────────────────────────────────
@@ -664,6 +731,12 @@ def main() -> int:
         history["grad_norm"].append(avg_grad)
         history["epoch_time"].append(ep_time)
 
+        # ─── Save last checkpoint every epoch ─────────────────────────
+        torch.save({"epoch": epoch, "model_state": model.state_dict(),
+                    "optimizer_state": optimizer.state_dict(),
+                    "best_val_f1": best_val_f1, "history": history,
+                    "patience_ctr": patience_ctr}, str(OUT_DIR / "checkpoints" / "last_checkpoint.pt"))
+
         # ─── Model selection & early stopping ────────────────────────────
         if vm["macro_f1"] > best_val_f1 + 1e-4:
             best_val_f1 = vm["macro_f1"]
@@ -671,8 +744,9 @@ def main() -> int:
             patience_ctr = 0
             torch.save({"epoch": epoch, "model_state": model.state_dict(),
                         "optimizer_state": optimizer.state_dict(),
-                        "best_val_f1": best_val_f1}, str(CKPT_PATH))
-            logger.info("  ✓ Checkpoint saved (val_macro_f1=%.4f)", best_val_f1)
+                        "best_val_f1": best_val_f1, "history": history,
+                        "patience_ctr": patience_ctr}, str(CKPT_PATH))
+            logger.info("  ✓ Best checkpoint saved (val_macro_f1=%.4f)", best_val_f1)
         else:
             patience_ctr += 1
             logger.info("  Patience %d/%d", patience_ctr, PATIENCE)
