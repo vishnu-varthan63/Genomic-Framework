@@ -102,7 +102,7 @@ def seed_everything(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    torch.use_deterministic_algorithms(False)   # CPU compatible
+    # torch.use_deterministic_algorithms skipped — triggers broken inductor import on this build
 
 def label_from_row(pt: str, sub: str) -> int:
     pt  = pt.upper()
