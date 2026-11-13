@@ -258,6 +258,8 @@ class FocalLoss(nn.Module):
         pt = torch.exp(-unweighted_ce)
         focal_term = ((1.0 - pt) ** self.gamma) * unweighted_ce
         if self.weight is not None:
+            if self.weight.device != targets.device:
+                self.weight = self.weight.to(targets.device)
             alpha_t = self.weight[targets]
             focal_loss = alpha_t * focal_term
         else:
@@ -276,12 +278,14 @@ def evaluate(model: nn.Module, loader: DataLoader, criterion: nn.Module,
     all_labels: List[torch.Tensor] = []
     total_loss = 0.0
     n_batches  = 0
+    use_cuda = (device.type == "cuda")
 
     with torch.no_grad():
         for tok, mut, lbl in loader:
             tok = tok.to(device);  mut = mut.to(device);  lbl = lbl.to(device)
-            logits, _ = model(tok, mut)
-            loss = criterion(logits, lbl)
+            with torch.amp.autocast(device_type=device.type, enabled=use_cuda):
+                logits, _ = model(tok, mut)
+                loss = criterion(logits, lbl)
             total_loss += loss.item()
             n_batches  += 1
             all_logits.append(logits.cpu())
@@ -551,30 +555,42 @@ def main() -> int:
     seed_everything(SEED)
     torch.set_num_threads(NUM_THREADS)
 
+    # ── Device selection (Auto CUDA / GPU) ──────────────────────────────────
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    use_cuda = (device.type == "cuda")
+
     # Create output dirs
     for d in [OUT_DIR / "checkpoints", OUT_DIR / "metrics", OUT_DIR / "plots"]:
         d.mkdir(parents=True, exist_ok=True)
 
     logger.info("=" * 60)
     logger.info("Genomic Classification Training — Full Pipeline")
-    logger.info("Device: CPU | Threads: %d | Batch: %d | Samples/epoch: %d",
-                NUM_THREADS, BATCH_SIZE, SAMPLES_PER_EPOCH)
+    if use_cuda:
+        gpu_name = torch.cuda.get_device_name(0)
+        vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+        logger.info("Device: GPU (%s, %.2f GB VRAM) | AMP Mixed-Precision: Enabled", gpu_name, vram_gb)
+    else:
+        logger.info("Device: CPU | Threads: %d | Batch: %d | Samples/epoch: %d",
+                    NUM_THREADS, BATCH_SIZE, SAMPLES_PER_EPOCH)
     logger.info("=" * 60)
 
     # ── Load data ──────────────────────────────────────────────────────────
     train_loader, val_loader, test_loader, class_weights = build_loaders()
 
-    # ── Build model ───────────────────────────────────────────────────────
+    # ── Build model & move to device ──────────────────────────────────────
     model = GenomicClassificationEngine(
         seq_len=SEQ_LEN, vocab_size=VOCAB_SIZE, hyena_dim=HYENA_DIM,
         hidden_dim=HIDDEN_DIM, num_classes=NUM_CLASSES,
         max_mutations=MAX_MUTATIONS, mutation_dim=MUTATION_DIM, dropout=0.2,
-    )
+    ).to(device)
     n_params = sum(p.numel() for p in model.parameters())
-    logger.info("Model assembled — %.2fM parameters", n_params / 1e6)
+    logger.info("Model assembled on %s — %.2fM parameters", device, n_params / 1e6)
 
+    if class_weights is not None:
+        class_weights = class_weights.to(device)
     criterion = FocalLoss(weight=class_weights, gamma=FOCAL_GAMMA)
     optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
+    scaler = torch.amp.GradScaler("cuda", enabled=use_cuda)
 
     n_batches_per_epoch = len(train_loader)
     T_max = max(1, MAX_EPOCHS - WARMUP_EPOCHS)
@@ -608,7 +624,7 @@ def main() -> int:
 
     if resume_path is not None:
         logger.info("Found checkpoint at %s — resuming training …", resume_path)
-        ckpt = torch.load(str(resume_path), map_location="cpu", weights_only=False)
+        ckpt = torch.load(str(resume_path), map_location=device, weights_only=False)
         saved_epoch = ckpt.get("epoch", 0)
         if saved_epoch >= 1:
             model.load_state_dict(ckpt["model_state"])
@@ -648,7 +664,7 @@ def main() -> int:
                         saved_epoch, best_val_f1, start_epoch)
 
     logger.info("=" * 60)
-    logger.info("Training starts/resumes at epoch %d — max %d epochs", start_epoch, MAX_EPOCHS)
+    logger.info("Training starts/resumes at epoch %d on %s — max %d epochs", start_epoch, device, MAX_EPOCHS)
     logger.info("=" * 60)
 
     for epoch in range(start_epoch, MAX_EPOCHS + 1):
@@ -668,18 +684,25 @@ def main() -> int:
         grad_norms: List[float] = []
 
         for step, (tok, mut, lbl) in enumerate(train_loader, 1):
+            tok = tok.to(device)
+            mut = mut.to(device)
+            lbl = lbl.to(device)
+
             optimizer.zero_grad(set_to_none=True)
-            logits, _ = model(tok, mut)
-            loss = criterion(logits, lbl)
+            with torch.amp.autocast(device_type=device.type, enabled=use_cuda):
+                logits, _ = model(tok, mut)
+                loss = criterion(logits, lbl)
 
             if not torch.isfinite(loss):
                 logger.warning("NaN loss at step %d — skipping", step)
                 continue
 
-            loss.backward()
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
             norm = float(nn.utils.clip_grad_norm_(model.parameters(), 1.0))
             grad_norms.append(norm)
-            optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
 
             ep_loss  += loss.item()
             ep_preds += logits.argmax(1).tolist()
@@ -700,7 +723,7 @@ def main() -> int:
         cur_lr    = optimizer.param_groups[0]["lr"]
 
         # ─── Validate ────────────────────────────────────────────────────
-        vm = evaluate(model, val_loader, criterion, torch.device("cpu"))
+        vm = evaluate(model, val_loader, criterion, device)
 
         ep_time = time.time() - ep_start
 
@@ -757,9 +780,9 @@ def main() -> int:
     # ── Load best and evaluate test set ───────────────────────────────────
     logger.info("=" * 60)
     logger.info("Loading best checkpoint → evaluating test set …")
-    ckpt = torch.load(str(CKPT_PATH), map_location="cpu", weights_only=False)
+    ckpt = torch.load(str(CKPT_PATH), map_location=device, weights_only=False)
     model.load_state_dict(ckpt["model_state"])
-    test_metrics = evaluate(model, test_loader, criterion, torch.device("cpu"))
+    test_metrics = evaluate(model, test_loader, criterion, device)
 
     logger.info("=" * 60)
     logger.info("TEST SET RESULTS:")
