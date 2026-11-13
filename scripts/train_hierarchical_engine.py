@@ -533,6 +533,7 @@ def main() -> int:
     parser.add_argument("--epochs", type=int, default=DEFAULT_MAX_EPOCHS, help="Number of epochs")
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help="Batch size")
     parser.add_argument("--samples-per-epoch", type=int, default=DEFAULT_SAMPLES_EPOCH, help="Samples drawn per epoch")
+    parser.add_argument("--eval-only", action="store_true", help="Skip training; load best checkpoint and run evaluation & visualization")
     args = parser.parse_args()
 
     seed_everything(SEED)
@@ -581,11 +582,14 @@ def main() -> int:
     best_combined_score = -1.0
     n_batches = len(train_loader)
 
-    logger.info("=" * 60)
-    logger.info("Starting Multi-Task Training: %d batches/epoch", n_batches)
-    logger.info("=" * 60)
+    if args.eval_only:
+        logger.info("Eval-only mode requested. Skipping multi-task training loop.")
+    else:
+        logger.info("=" * 60)
+        logger.info("Starting Multi-Task Training: %d batches/epoch", n_batches)
+        logger.info("=" * 60)
 
-    for epoch in range(1, args.epochs + 1):
+    for epoch in ([] if args.eval_only else range(1, args.epochs + 1)):
         ep_start = time.time()
 
         # Warmup
@@ -683,6 +687,8 @@ def main() -> int:
     logger.info("Loading Best Checkpoint → Running Final Test Evaluation …")
     ckpt = torch.load(str(CKPT_PATH), map_location=device, weights_only=False)
     model.load_state_dict(ckpt["model_state"])
+    if "history" in ckpt and isinstance(ckpt["history"], dict) and ckpt["history"].get("total_loss"):
+        history = ckpt["history"]
 
     test_metrics = evaluate_hierarchical(model, test_loader, device)
 
@@ -765,3 +771,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

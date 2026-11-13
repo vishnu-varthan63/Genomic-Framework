@@ -390,7 +390,7 @@ class ExplainableAttributionEngine:
             emb = embeddings[0]
             grad = embeddings[0].grad
             # Gradient * Input attribution
-            attr = (grad * emb).sum(dim=-1).abs().squeeze(0).cpu().numpy()
+            attr = (grad * emb).sum(dim=-1).abs().squeeze(0).detach().cpu().numpy()
         else:
             # Fallback: pseudo-saliency based on attention
             attr = np.ones(token_ids.size(1), dtype=np.float32)
