@@ -279,6 +279,15 @@ class CrossAttentionFusion(nn.Module):
         else:  # max
             fused = mut_fused.max(dim=1).values
 
+        # Direct sequence context pooling skip connection
+        if key_padding_mask is not None:
+            mask_expanded = (~key_padding_mask).unsqueeze(-1).float()
+            seq_pooled = (context_pool * mask_expanded).sum(dim=1) / mask_expanded.sum(dim=1).clamp(min=1.0)
+        else:
+            seq_pooled = context_pool.mean(dim=1)
+
+        fused = fused + seq_pooled
+
         # --- 7. Final output projection ---
         fused = self.output_proj(fused)                    # [B, H]
 
