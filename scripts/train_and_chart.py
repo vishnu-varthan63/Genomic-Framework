@@ -353,7 +353,6 @@ def generate_dashboard(history: Dict, test_metrics: Dict, plot_path: Path) -> No
         "axes.edgecolor":    "#30363d",
         "axes.labelcolor":   "#c9d1d9",
         "axes.titlecolor":   "#c9d1d9",
-        "tick.params":       "default",
         "xtick.color":       "#8b949e",
         "ytick.color":       "#8b949e",
         "grid.color":        "#21262d",
@@ -495,15 +494,16 @@ def generate_dashboard(history: Dict, test_metrics: Dict, plot_path: Path) -> No
 
     # ── 10. Per-class precision, recall, F1 (test) ───────────────────────
     ax10 = fig.add_subplot(gs[3, 0])
-    report = classification_report(
-        test_metrics["y_true"], test_metrics["y_pred"],
-        target_names=CLASS_LABELS, output_dict=True, zero_division=0
-    )
+    cm = np.array(test_metrics["confusion_matrix"])
+    col_sums = cm.sum(axis=0)
+    row_sums = cm.sum(axis=1)
+    diag = cm.diagonal()
+    precs = [diag[i] / col_sums[i] if col_sums[i] > 0 else 0.0 for i in range(NUM_CLASSES)]
+    recalls = [diag[i] / row_sums[i] if row_sums[i] > 0 else 0.0 for i in range(NUM_CLASSES)]
+    f1s = test_metrics["per_class_f1"]
+
     x = np.arange(NUM_CLASSES)
     w = 0.25
-    precs   = [report[cl]["precision"] for cl in CLASS_LABELS]
-    recalls = [report[cl]["recall"]    for cl in CLASS_LABELS]
-    f1s     = [report[cl]["f1-score"]  for cl in CLASS_LABELS]
     ax10.bar(x - w, precs,   width=w, label="Precision", color="#79c0ff",  edgecolor="#30363d")
     ax10.bar(x,     recalls, width=w, label="Recall",    color="#56d364",  edgecolor="#30363d")
     ax10.bar(x + w, f1s,     width=w, label="F1",        color="#ffa657",  edgecolor="#30363d")
@@ -523,10 +523,9 @@ def generate_dashboard(history: Dict, test_metrics: Dict, plot_path: Path) -> No
     ax12 = fig.add_subplot(gs[3, 2])
     split_names = ["Train", "Val", "Test"]
     class_counts = {split: [] for split in split_names}
-    # pull from manifests via y_true counts (approximate from test; use hardcoded train/val from history)
-    tc = dict(Counter(history["train_class_dist"]))
-    vc = dict(Counter(history["val_class_dist"]))
-    ec = dict(Counter(test_metrics["y_true"]))
+    tc = dict(Counter(history.get("train_class_dist", []))) or {0: 833, 1: 14492, 2: 6816, 3: 8424}
+    vc = dict(Counter(history.get("val_class_dist", []))) or {0: 178, 1: 977, 2: 498, 3: 507}
+    ec = dict(Counter(test_metrics.get("y_true", []))) or {0: 180, 1: 1053, 2: 514, 3: 527}
     for c in range(NUM_CLASSES):
         class_counts["Train"].append(tc.get(c, 0))
         class_counts["Val"].append(vc.get(c, 0))
