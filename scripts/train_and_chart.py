@@ -60,25 +60,33 @@ from Genomic_Framework.pipeline.preprocessor import (
 )
 
 # ── logging ──────────────────────────────────────────────────────────────────
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)-8s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+class FlushingStreamHandler(logging.StreamHandler):
+    def emit(self, record):
+        super().emit(record)
+        self.flush()
+
+handler = FlushingStreamHandler(sys.stdout)
+handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)-8s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
 logger = logging.getLogger("train_and_chart")
+logger.setLevel(logging.INFO)
+logger.addHandler(handler)
+logger.propagate = False
+logging.getLogger().setLevel(logging.INFO)
+logging.getLogger().addHandler(handler)
 
 # ── constants ────────────────────────────────────────────────────────────────
-SEQ_LEN           = 512
-VOCAB_SIZE        = 4096
-K_MER             = 6
-MAX_MUTATIONS     = 32
-MUTATION_DIM      = 64
-HYENA_DIM         = 256
-HIDDEN_DIM        = 512
-DEFAULT_BATCH_SIZE= 64
-DEFAULT_MAX_EPOCHS= 50
-MIN_EPOCHS        = 20
-PATIENCE          = 15
+SEQ_LEN               = 512
+VOCAB_SIZE            = 4096
+K_MER                 = 6
+MAX_MUTATIONS         = 32
+MUTATION_DIM          = 64
+HYENA_DIM             = 256
+HIDDEN_DIM            = 512
+DEFAULT_BATCH_SIZE    = 32
+DEFAULT_MAX_EPOCHS    = 50
+DEFAULT_SAMPLES_PER_EPOCH = 3200  # 100 balanced batches of 32 -> ~25s/epoch, 21 min for 50 epochs
+MIN_EPOCHS            = 20
+PATIENCE              = 15
 LR                = 3e-4
 WEIGHT_DECAY      = 1e-2
 FOCAL_GAMMA       = 2.0
@@ -217,9 +225,9 @@ def load_split_tensors(split: str, csv_path: Path, fasta_dir: Path) -> Tuple[tor
     return tokens_t, labels_t
 
 
-def build_loaders(batch_size: int = DEFAULT_BATCH_SIZE):
+def build_loaders(batch_size: int = DEFAULT_BATCH_SIZE, samples_per_epoch: int = DEFAULT_SAMPLES_PER_EPOCH):
     logger.info("=" * 60)
-    logger.info("Loading and tokenising datasets (Batch Size: %d) …", batch_size)
+    logger.info("Loading datasets (Batch Size: %d | Samples/Epoch: %d) …", batch_size, samples_per_epoch)
     logger.info("=" * 60)
 
     t0 = time.time()
@@ -239,11 +247,12 @@ def build_loaders(batch_size: int = DEFAULT_BATCH_SIZE):
     logger.info("Class sampling weights (mean-normalised): %s",
                 {CLASS_LABELS[i]: round(weights[i].item(), 3) for i in range(NUM_CLASSES)})
 
-    # Sample full training set size with balanced representation
+    # Balanced draws per epoch
+    num_samples = len(tr_tok) if (samples_per_epoch is None or samples_per_epoch <= 0) else samples_per_epoch
     sample_w = weights[tr_lbl]
     sampler  = WeightedRandomSampler(
         weights=sample_w,
-        num_samples=len(tr_tok),  # Full 30,565 draws per epoch!
+        num_samples=num_samples,
         replacement=True,
     )
 
@@ -662,10 +671,13 @@ def main() -> int:
     parser.add_argument("--fresh", action="store_true", help="Start training fresh from epoch 1")
     parser.add_argument("--epochs", type=int, default=DEFAULT_MAX_EPOCHS, help="Number of maximum epochs")
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help="Batch size")
+    parser.add_argument("--samples-per-epoch", type=int, default=DEFAULT_SAMPLES_PER_EPOCH,
+                        help="Number of balanced sequence draws per epoch (default 3200)")
     args = parser.parse_args()
 
     max_epochs = args.epochs
     batch_size = args.batch_size
+    samples_per_epoch = args.samples_per_epoch
 
     seed_everything(SEED)
     torch.set_num_threads(NUM_THREADS)
@@ -685,11 +697,14 @@ def main() -> int:
         logger.info("Device: GPU (%s, %.2f GB VRAM) | AMP Mixed-Precision: Enabled", gpu_name, vram_gb)
     else:
         logger.info("Device: CPU | Threads: %d", NUM_THREADS)
-    logger.info("Epochs: %d | Batch Size: %d | Fresh Start: %s", max_epochs, batch_size, args.fresh)
+    logger.info("Epochs: %d | Batch Size: %d | Samples/Epoch: %d | Fresh Start: %s",
+                max_epochs, batch_size, samples_per_epoch, args.fresh)
     logger.info("=" * 60)
 
     # ── Load data ──────────────────────────────────────────────────────────
-    train_loader, val_loader, test_loader, class_weights = build_loaders(batch_size=batch_size)
+    train_loader, val_loader, test_loader, class_weights = build_loaders(
+        batch_size=batch_size, samples_per_epoch=samples_per_epoch
+    )
 
     # ── Build model ────────────────────────────────────────────────────────
     model = GenomicClassificationEngine(
@@ -800,7 +815,7 @@ def main() -> int:
             ep_preds += logits.argmax(1).tolist()
             ep_true  += lbl.tolist()
 
-            if step % 100 == 0 or step == n_batches_per_epoch:
+            if step % 25 == 0 or step == n_batches_per_epoch:
                 logger.info("  Epoch %2d/%d | Step %3d/%d | Loss: %.4f | GradNorm: %.3f",
                             epoch, max_epochs, step, n_batches_per_epoch, loss.item(), norm)
 
